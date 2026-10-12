@@ -1,0 +1,33 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+__pycache__/
+.DS_Store
+.history
+
+# IDE
+*.iml
+.idea/
+.vscode/
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+**/build/
+
+# Android Studio / Gradle
+.gradle/
+**/android/.gradle/
+**/android/app/build/
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+
+# Large binaries & generated test files
+*.apk
+*.pdf
+*.html
