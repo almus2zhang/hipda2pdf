@@ -955,10 +955,20 @@ class _MainScreenState extends State<MainScreen> {
 
             var styleEl = document.createElement('style');
             styleEl.innerHTML = `
-              html, body, #wrap, #postlist, .viewthread, .mainbox {
+              html, body {
+                background: #ffffff !important;
+                background-color: #ffffff !important;
+                background-image: none !important;
                 text-align: left !important;
                 width: ${_pdfWidth}px !important;
                 margin: 0 !important;
+                padding: 0 !important;
+              }
+              #wrap, #postlist, .viewthread, .mainbox {
+                text-align: left !important;
+                width: ${_pdfWidth}px !important;
+                margin: 0 !important;
+                background: #ffffff !important;
               }
               table, tbody, tr, td, .postcontent, .postmessage, .t_msgfont, .t_msgfontfix, p, div, span, h1, h2, h3, h4 {
                 text-align: left !important;
@@ -1964,9 +1974,13 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
         : '''
           .postauthor, td.postauthor {
             display: table-cell !important;
+            width: 160px !important;
+            max-width: 180px !important;
           }
           .postcontent, td.postcontent {
             display: table-cell !important;
+            width: auto !important;
+            box-sizing: border-box !important;
           }
           .postauthor, .postauthor * {
             text-align: left !important;
@@ -2031,6 +2045,24 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
         });
 
         var is600 = ($width === 600);
+        var meta = document.querySelector('meta[name="viewport"]');
+        if (!meta) {
+          meta = document.createElement('meta');
+          meta.name = 'viewport';
+          document.head.appendChild(meta);
+        }
+        meta.setAttribute('content', is600
+          ? 'width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes'
+          : 'width=' + $width + ', initial-scale=1.0, maximum-scale=3.0, user-scalable=yes'
+        );
+
+        document.documentElement.style.background = '#ffffff';
+        document.documentElement.style.backgroundColor = '#ffffff';
+        document.documentElement.style.backgroundImage = 'none';
+        document.body.style.background = '#ffffff';
+        document.body.style.backgroundColor = '#ffffff';
+        document.body.style.backgroundImage = 'none';
+
         var tables = document.querySelectorAll('#postlist table[id^="pid"], table[id^="pid"]');
         if (tables.length === 0) {
           tables = document.querySelectorAll('table.viewthread, #postlist > table');
@@ -2181,11 +2213,12 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
             if (postInfo) postInfo.style.display = '';
             if (authorTd) authorTd.style.display = '';
 
-            table.style.width = '';
+            table.style.width = '${width}px';
+            table.style.maxWidth = '${width}px';
             table.style.display = '';
-            table.style.margin = '';
+            table.style.margin = '0 0 10px 0';
             table.style.border = '';
-            table.style.background = '';
+            table.style.background = '#ffffff';
 
             contentTd.style.display = '';
             contentTd.style.width = '';
@@ -2203,16 +2236,32 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
           document.body.style.width = '100%';
           document.documentElement.style.width = '100%';
           var wrap = document.querySelector('.wrap') || document.querySelector('#wrap');
-          if (wrap) wrap.style.width = '100%';
+          if (wrap) {
+            wrap.style.width = '100%';
+            wrap.style.margin = '0';
+            wrap.style.padding = '0';
+          }
           var postlist = document.getElementById('postlist');
-          if (postlist) postlist.style.width = '100%';
+          if (postlist) {
+            postlist.style.width = '100%';
+            postlist.style.margin = '0';
+            postlist.style.padding = '0';
+          }
         } else {
           document.body.style.width = '${width}px';
           document.documentElement.style.width = '${width}px';
           var wrap = document.querySelector('.wrap') || document.querySelector('#wrap');
-          if (wrap) wrap.style.width = '${width}px';
+          if (wrap) {
+            wrap.style.width = '${width}px';
+            wrap.style.margin = '0';
+            wrap.style.padding = '0';
+          }
           var postlist = document.getElementById('postlist');
-          if (postlist) postlist.style.width = '${width}px';
+          if (postlist) {
+            postlist.style.width = '${width}px';
+            postlist.style.margin = '0';
+            postlist.style.padding = '0';
+          }
         }
 
         // Update auxiliary font sizes dynamically on existing DOM elements
@@ -2279,11 +2328,24 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
           document.head.appendChild(styleEl);
         }
         styleEl.innerHTML = `
-          html, body, #wrap, #postlist, .viewthread, .mainbox {
+          html, body {
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+            background-image: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            text-align: left !important;
+            width: ${is600 ? '100%' : '${width}px'} !important;
+          }
+          #wrap, #postlist, .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
             width: ${is600 ? '100%' : '${width}px'} !important;
             max-width: ${is600 ? '100%' : '${width}px'} !important;
             margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
             box-sizing: border-box !important;
+            background: #ffffff !important;
+            background-color: #ffffff !important;
           }
           table, tbody, tr, td, .postcontent, .postmessage, .t_msgfont, .t_msgfontfix, p, div, span, h1, h2, h3, h4 {
             text-align: left !important;
@@ -2539,31 +2601,34 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
         children: [
           if (_progress < 1.0) LinearProgressIndicator(value: _progress),
           Expanded(
-            child: InAppWebView(
-              initialUrlRequest: URLRequest(
-                url: WebUri(widget.item.url),
+            child: Container(
+              color: Colors.white,
+              child: InAppWebView(
+                initialUrlRequest: URLRequest(
+                  url: WebUri(widget.item.url),
+                ),
+                initialSettings: InAppWebViewSettings(
+                  javaScriptEnabled: true,
+                  domStorageEnabled: true,
+                  databaseEnabled: true,
+                  useWideViewPort: true,
+                  loadWithOverviewMode: true,
+                  thirdPartyCookiesEnabled: true,
+                  cacheEnabled: true,
+                  userAgent: _MainScreenState.kDesktopUserAgent,
+                ),
+                onWebViewCreated: (controller) {
+                  _webViewController = controller;
+                },
+                onProgressChanged: (controller, progress) {
+                  setState(() {
+                    _progress = progress / 100;
+                  });
+                },
+                onLoadStop: (controller, url) async {
+                  await _injectStyles(controller);
+                },
               ),
-              initialSettings: InAppWebViewSettings(
-                javaScriptEnabled: true,
-                domStorageEnabled: true,
-                databaseEnabled: true,
-                useWideViewPort: true,
-                loadWithOverviewMode: true,
-                thirdPartyCookiesEnabled: true,
-                cacheEnabled: true,
-                userAgent: _MainScreenState.kDesktopUserAgent,
-              ),
-              onWebViewCreated: (controller) {
-                _webViewController = controller;
-              },
-              onProgressChanged: (controller, progress) {
-                setState(() {
-                  _progress = progress / 100;
-                });
-              },
-              onLoadStop: (controller, url) async {
-                await _injectStyles(controller);
-              },
             ),
           ),
         ],
