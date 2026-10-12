@@ -829,7 +829,7 @@ class _MainScreenState extends State<MainScreen> {
                   header.style.cssText = 'display: flex !important; align-items: center !important; justify-content: space-between !important; ' +
                     'padding-top: 12px !important; padding-bottom: 6px !important; padding-left: 14px !important; padding-right: 14px !important; ' +
                     'width: 600px !important; box-sizing: border-box !important; ' +
-                    'border-top: 1px solid #e5e7eb !important; border-bottom: 1px solid #f0f0f0 !important; ' +
+                    'border-top: 1px solid #e5e7eb !important; border-bottom: none !important; ' +
                     'background: #ffffff !important; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;';
 
                   // Left part: Avatar + Username
@@ -1003,6 +1003,10 @@ class _MainScreenState extends State<MainScreen> {
                 margin: 0 !important;
                 padding: 0 !important;
                 word-break: break-word !important;
+              }
+              .d2pdf-custom-header {
+                border-top: 1px solid #e5e7eb !important;
+                border-bottom: none !important;
               }
               .d2pdf-header-username {
                 font-size: ${usernameSize}px !important;
@@ -2151,7 +2155,7 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
               header.style.cssText = 'display: flex !important; align-items: center !important; justify-content: space-between !important; ' +
                 'padding-top: 12px !important; padding-bottom: 6px !important; padding-left: 14px !important; padding-right: 14px !important; ' +
                 'width: 100% !important; box-sizing: border-box !important; ' +
-                'border-top: 1px solid #e5e7eb !important; border-bottom: 1px solid #f0f0f0 !important; ' +
+                'border-top: 1px solid #e5e7eb !important; border-bottom: none !important; ' +
                 'background: #ffffff !important; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;';
 
               var left = document.createElement('div');
@@ -2381,6 +2385,10 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
             margin: 0 !important;
             padding: 0 !important;
             word-break: break-word !important;
+          }
+          .d2pdf-custom-header {
+            border-top: 1px solid #e5e7eb !important;
+            border-bottom: none !important;
           }
           .d2pdf-header-username {
             font-size: ${usernameSize}px !important;
