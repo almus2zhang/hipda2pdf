@@ -68,12 +68,17 @@ class MainActivity: FlutterActivity() {
                 }
                 handler.postDelayed(timeoutRunnable, 25000)
 
+                val widthPx = (widthMills * 96.0 / 1000.0).toInt().coerceAtLeast(600)
+                val heightPx = (heightMills * 96.0 / 1000.0).toInt().coerceAtLeast(1080)
+
                 val webView = WebView(this)
+                webView.setBackgroundColor(android.graphics.Color.WHITE)
                 val settings = webView.settings
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
                 settings.useWideViewPort = true
                 settings.loadWithOverviewMode = true
+                settings.textZoom = 100
                 settings.userAgentString = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -82,7 +87,7 @@ class MainActivity: FlutterActivity() {
 
                 // Attach webView to root view hierarchy with invisible visibility so Android WebView does layout & drawing passes
                 val rootLayout = window.decorView as? android.view.ViewGroup
-                val lp = android.view.ViewGroup.LayoutParams(1920, 1080)
+                val lp = android.view.ViewGroup.LayoutParams(widthPx, heightPx)
                 webView.visibility = android.view.View.INVISIBLE
                 rootLayout?.addView(webView, lp)
 
@@ -97,19 +102,28 @@ class MainActivity: FlutterActivity() {
                 webView.webViewClient = object : WebViewClient() {
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
-                        // Trigger layout pass
+                        // Trigger layout pass with the exact target width
                         view?.measure(
-                            android.view.View.MeasureSpec.makeMeasureSpec(1920, android.view.View.MeasureSpec.EXACTLY),
-                            android.view.View.MeasureSpec.makeMeasureSpec(1080, android.view.View.MeasureSpec.EXACTLY)
+                            android.view.View.MeasureSpec.makeMeasureSpec(widthPx, android.view.View.MeasureSpec.EXACTLY),
+                            android.view.View.MeasureSpec.makeMeasureSpec(heightPx, android.view.View.MeasureSpec.EXACTLY)
                         )
-                        view?.layout(0, 0, 1920, 1080)
+                        view?.layout(0, 0, widthPx, heightPx)
 
-                        view?.postDelayed({
-                            printWebView(webView, outputPath, widthMills, heightMills) { success, err ->
-                                cleanup()
-                                finishOnce(success, err)
-                            }
-                        }, 1200)
+                        // Re-measure content height directly in this WebView to guarantee no pagination overflow
+                        view?.evaluateJavascript(
+                            "Math.max(document.body.scrollHeight || 0, document.documentElement.scrollHeight || 0, document.body.offsetHeight || 0);"
+                        ) { measuredHeightStr ->
+                            val measured = measuredHeightStr?.replace("\"", "")?.toDoubleOrNull()?.toInt() ?: heightPx
+                            val finalHeightPx = Math.max(heightPx, measured + 40)
+                            val finalHeightMills = (finalHeightPx * 1000.0 / 96.0).toInt()
+
+                            view?.postDelayed({
+                                printWebView(webView, outputPath, widthMills, finalHeightMills) { success, err ->
+                                    cleanup()
+                                    finishOnce(success, err)
+                                }
+                            }, 1200)
+                        }
                     }
                 }
 

@@ -316,7 +316,10 @@ class D2PdfConverter {
     for (final file in pdfFiles) {
       final bytes = await file.readAsBytes();
       final sf.PdfDocument loadedDoc = sf.PdfDocument(inputBytes: bytes);
-      for (int i = 0; i < loadedDoc.pages.count; i++) {
+      // Each file represents one forum thread page in single-page continuous format.
+      // Safeguard: discard any accidental trailing blank overflow pages (keep only first page).
+      final int pagesToInclude = loadedDoc.pages.count > 0 ? 1 : 0;
+      for (int i = 0; i < pagesToInclude; i++) {
         final loadedPage = loadedDoc.pages[i];
         final sf.PdfTemplate template = loadedPage.createTemplate();
         

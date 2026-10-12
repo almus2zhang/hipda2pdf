@@ -31,8 +31,10 @@ class NativePdfPrinter(private val printAttributes: PrintAttributes) {
                             }
                             val pfd = ParcelFileDescriptor.open(outputFile, ParcelFileDescriptor.MODE_READ_WRITE or ParcelFileDescriptor.MODE_CREATE)
 
+                            // Only print page 0 (single continuous page per thread page)
+                            // to eliminate any accidental trailing blank overflow pages
                             printAdapter.onWrite(
-                                arrayOf(PageRange.ALL_PAGES),
+                                arrayOf(PageRange(0, 0)),
                                 pfd,
                                 CancellationSignal(),
                                 object : PrintDocumentAdapter.WriteResultCallback() {

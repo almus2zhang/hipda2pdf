@@ -724,7 +724,7 @@ class _MainScreenState extends State<MainScreen> {
               var sib = postlistEl.nextElementSibling;
               while (sib) {
                 var next = sib.nextElementSibling;
-                sib.style.display = 'none';
+                sib.remove();
                 sib = next;
               }
             }
@@ -963,12 +963,17 @@ class _MainScreenState extends State<MainScreen> {
                 width: ${_pdfWidth}px !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                overflow-x: hidden !important;
               }
-              #wrap, #postlist, .viewthread, .mainbox {
+              #wrap, #postlist, .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
                 text-align: left !important;
                 width: ${_pdfWidth}px !important;
+                max-width: ${_pdfWidth}px !important;
                 margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
                 background: #ffffff !important;
+                background-color: #ffffff !important;
               }
               table, tbody, tr, td, .postcontent, .postmessage, .t_msgfont, .t_msgfontfix, p, div, span, h1, h2, h3, h4 {
                 text-align: left !important;
@@ -1053,9 +1058,10 @@ class _MainScreenState extends State<MainScreen> {
             1080
           );
         """);
-        final double contentHeight = (heightVal is num)
+        final double rawHeight = (heightVal is num)
             ? heightVal.toDouble()
             : double.tryParse(heightVal?.toString() ?? '1080') ?? 1080.0;
+        final double contentHeight = rawHeight + 40.0;
 
         setState(() {
           _conversionStatus = '正在提取第 $page / $totalPages 页样式与排版...';
@@ -2023,7 +2029,7 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
           var sib = postlistEl.nextElementSibling;
           while (sib) {
             var next = sib.nextElementSibling;
-            sib.style.display = 'none';
+            sib.remove();
             sib = next;
           }
         }
