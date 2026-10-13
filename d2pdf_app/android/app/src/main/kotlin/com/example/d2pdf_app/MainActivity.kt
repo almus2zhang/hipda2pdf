@@ -39,6 +39,24 @@ class MainActivity: FlutterActivity() {
                     CookieManager.getInstance().flush()
                     result.success(true)
                 }
+                "startKeepAlive" -> {
+                    val title = call.argument<String>("title") ?: "HiPDA D2PDF 批量生成"
+                    val content = call.argument<String>("content") ?: "正在后台处理任务，请保持应用运行..."
+                    KeepAliveService.start(this, title, content)
+                    result.success(true)
+                }
+                "updateKeepAlive" -> {
+                    val title = call.argument<String>("title") ?: "HiPDA D2PDF 批量生成"
+                    val content = call.argument<String>("content") ?: "正在导出中..."
+                    val progress = call.argument<Int>("progress") ?: -1
+                    val max = call.argument<Int>("max") ?: -1
+                    KeepAliveService.update(this, title, content, progress, max)
+                    result.success(true)
+                }
+                "stopKeepAlive" -> {
+                    KeepAliveService.stop(this)
+                    result.success(true)
+                }
                 else -> result.notImplemented()
             }
         }

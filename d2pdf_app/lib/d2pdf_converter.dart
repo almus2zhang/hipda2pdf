@@ -32,6 +32,37 @@ class D2PdfConverter {
     } catch (_) {}
   }
 
+  /// Start background keep-alive service & wake lock
+  static Future<void> startKeepAlive({required String title, required String content}) async {
+    try {
+      await _nativeChannel.invokeMethod('startKeepAlive', {'title': title, 'content': content});
+    } catch (_) {}
+  }
+
+  /// Update keep-alive notification progress
+  static Future<void> updateKeepAlive({
+    required String title,
+    required String content,
+    required int progress,
+    required int max,
+  }) async {
+    try {
+      await _nativeChannel.invokeMethod('updateKeepAlive', {
+        'title': title,
+        'content': content,
+        'progress': progress,
+        'max': max,
+      });
+    } catch (_) {}
+  }
+
+  /// Stop background keep-alive service & wake lock
+  static Future<void> stopKeepAlive() async {
+    try {
+      await _nativeChannel.invokeMethod('stopKeepAlive');
+    } catch (_) {}
+  }
+
   /// Convert HTML to PDF using native Android PrintDocumentAdapter
   static Future<File> printHtmlToPdfNative({
     required String htmlContent,
@@ -250,6 +281,84 @@ class D2PdfConverter {
           tid: tid,
           title: title,
           author: '楼主',
+          replies: '-',
+          views: '-',
+          url: 'https://www.4d4y.com/forum/viewthread.php?tid=$tid',
+        ));
+      }
+    }
+
+    return list;
+  }
+
+  /// Parse threads from my threads page html (my.php?item=threads)
+  static List<ForumThreadItem> parseMyThreads(String html) {
+    final List<ForumThreadItem> list = [];
+    final Set<String> seenTids = {};
+
+    // 1. In Discuz 7.2 my threads table (my.php?item=threads):
+    // rows have <th><a href="viewthread.php?tid=123"...>Title</a></th>
+    // forum in <td class="forum"><a ...>Forum</a></td>
+    // nums in <td class="nums">12/345</td>
+    final trRegex = RegExp(r'<tr[^>]*>(.*?)</tr>', dotAll: true, caseSensitive: false);
+    for (final match in trRegex.allMatches(html)) {
+      final row = match.group(1) ?? '';
+      final linkMatch = RegExp(r'<a[^>]*href="[^"]*viewthread\.php\?tid=(\d+)[^"]*"[^>]*>(.*?)</a>', dotAll: true, caseSensitive: false).firstMatch(row);
+      if (linkMatch == null) continue;
+
+      final tid = linkMatch.group(1) ?? '';
+      if (seenTids.contains(tid)) continue;
+
+      var title = linkMatch.group(2) ?? '';
+      title = title.replaceAll(RegExp(r'<[^>]+>'), '').trim();
+      if (title.isEmpty || title == '最后发表' || title == '新帖' || title == '标题') continue;
+
+      // Forum name as prefix or tag
+      String forum = '';
+      final forumMatch = RegExp(r'<td class="forum"[^>]*>.*?<a[^>]*>(.*?)</a>', dotAll: true).firstMatch(row);
+      if (forumMatch != null) {
+        forum = forumMatch.group(1)!.replaceAll(RegExp(r'<[^>]+>'), '').trim();
+      }
+
+      // Replies & views
+      String replies = '0';
+      String views = '0';
+      final numsMatch = RegExp(r'<td class="nums"[^>]*>(?:<strong>)?(\d+)(?:</strong>)?/(?:<em>)?(\d+)(?:</em>)?', dotAll: true).firstMatch(row);
+      if (numsMatch != null) {
+        replies = numsMatch.group(1) ?? '0';
+        views = numsMatch.group(2) ?? '0';
+      }
+
+      seenTids.add(tid);
+      list.add(ForumThreadItem(
+        tid: tid,
+        title: title,
+        author: forum.isNotEmpty ? forum : '我的帖子',
+        replies: replies,
+        views: views,
+        url: 'https://www.4d4y.com/forum/viewthread.php?tid=$tid',
+      ));
+    }
+
+    // 2. Fallback: if table parsing returned empty, try generic thread links regex
+    if (list.isEmpty) {
+      final linkRegex = RegExp(
+        r'<a[^>]*href="[^"]*viewthread\.php\?tid=(\d+)[^"]*"[^>]*>(.*?)</a>',
+        dotAll: true,
+        caseSensitive: false,
+      );
+      for (final match in linkRegex.allMatches(html)) {
+        final tid = match.group(1) ?? '';
+        if (seenTids.contains(tid)) continue;
+        var title = match.group(2) ?? '';
+        title = title.replaceAll(RegExp(r'<[^>]+>'), '').trim();
+        if (title.isEmpty || title == '最后发表' || title == '新帖' || title.length < 2) continue;
+
+        seenTids.add(tid);
+        list.add(ForumThreadItem(
+          tid: tid,
+          title: title,
+          author: '我的帖子',
           replies: '-',
           views: '-',
           url: 'https://www.4d4y.com/forum/viewthread.php?tid=$tid',

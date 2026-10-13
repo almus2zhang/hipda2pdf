@@ -44,8 +44,29 @@ class _MainScreenState extends State<MainScreen> {
   bool _isLoggedIn = false;
   bool _isLoadingThreads = false;
   int _currentForumPage = 1;
-  String _currentViewMode = 'discovery'; // 'discovery' or 'favorites'
+  String _currentViewMode = 'discovery'; // 'discovery', 'favorites', 'my_threads'
   List<ForumThreadItem> _threadList = [];
+
+  // Multi-selection & batch generation state
+  bool _isMultiSelectMode = false;
+  final Set<String> _selectedTids = {};
+  final Map<String, ForumThreadItem> _selectedItems = {};
+  bool _isBatchConverting = false;
+  int _batchTotalCount = 0;
+  int _batchCurrentIndex = 0;
+  final List<String> _batchSuccessTitles = [];
+  final List<String> _batchFailedTitles = [];
+
+  String get _currentViewModeLabel {
+    switch (_currentViewMode) {
+      case 'favorites':
+        return '我的收藏';
+      case 'my_threads':
+        return '我的帖子';
+      default:
+        return 'Discovery';
+    }
+  }
 
   // PDF render width setting (default 600px mobile card layout, supports 600, 800, 1280, 1440, 1920)
   int _pdfWidth = 600;
@@ -234,18 +255,28 @@ class _MainScreenState extends State<MainScreen> {
         throw Exception('渲染内核尚未就绪，请稍后刷新重试');
       }
 
-      final url = _currentViewMode == 'favorites'
-          ? 'https://www.4d4y.com/forum/my.php?item=favorites&type=thread&page=$page'
-          : 'https://www.4d4y.com/forum/forumdisplay.php?fid=2&page=$page';
+      final String url;
+      if (_currentViewMode == 'favorites') {
+        url = 'https://www.4d4y.com/forum/my.php?item=favorites&type=thread&page=$page';
+      } else if (_currentViewMode == 'my_threads') {
+        url = 'https://www.4d4y.com/forum/my.php?item=threads&page=$page';
+      } else {
+        url = 'https://www.4d4y.com/forum/forumdisplay.php?fid=2&page=$page';
+      }
       await _loadUrlInController(activeController, url);
 
       // Wait a moment for dynamic Discuz scripts to finish DOM rendering
       await Future.delayed(const Duration(milliseconds: 1200));
 
       final html = await activeController.getHtml() ?? '';
-      final threads = _currentViewMode == 'favorites'
-          ? D2PdfConverter.parseFavoriteThreads(html)
-          : D2PdfConverter.parseForumThreads(html);
+      final List<ForumThreadItem> threads;
+      if (_currentViewMode == 'favorites') {
+        threads = D2PdfConverter.parseFavoriteThreads(html);
+      } else if (_currentViewMode == 'my_threads') {
+        threads = D2PdfConverter.parseMyThreads(html);
+      } else {
+        threads = D2PdfConverter.parseForumThreads(html);
+      }
 
       setState(() {
         _isLoadingThreads = false;
@@ -276,9 +307,14 @@ class _MainScreenState extends State<MainScreen> {
             ),
           );
         } else {
-          final emptyTip = _currentViewMode == 'favorites'
-              ? '未解析到收藏帖子（可能暂无收藏或第 $page 页为空）'
-              : '未解析到帖子列表，请点击“刷新重试”或右上角“输入网址生成”';
+          final String emptyTip;
+          if (_currentViewMode == 'favorites') {
+            emptyTip = '未解析到收藏帖子（可能暂无收藏或第 $page 页为空）';
+          } else if (_currentViewMode == 'my_threads') {
+            emptyTip = '未解析到“我的帖子”（可能尚未发帖或第 $page 页为空）';
+          } else {
+            emptyTip = '未解析到帖子列表，请点击“刷新重试”或右上角“输入网址生成”';
+          }
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(emptyTip)),
           );
@@ -296,18 +332,68 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  void _toggleFavoritesView() {
-    if (_isConverting) return;
+  void _switchViewMode(String mode) {
+    if (_isConverting || _isBatchConverting) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('正在执行 PDF 生成任务，请稍候切换板块')),
+      );
+      return;
+    }
+    if (_currentViewMode == mode) return;
     setState(() {
-      if (_currentViewMode == 'favorites') {
-        _currentViewMode = 'discovery';
-      } else {
-        _currentViewMode = 'favorites';
-      }
+      _currentViewMode = mode;
       _currentForumPage = 1;
+      _exitMultiSelectMode();
       _threadList.clear();
     });
     _loadForumPage(1);
+  }
+
+  void _exitMultiSelectMode() {
+    setState(() {
+      _isMultiSelectMode = false;
+      _selectedTids.clear();
+      _selectedItems.clear();
+    });
+  }
+
+  void _enterMultiSelectMode([ForumThreadItem? item]) {
+    if (_isConverting || _isBatchConverting) return;
+    setState(() {
+      _isMultiSelectMode = true;
+      _selectedTids.clear();
+      _selectedItems.clear();
+      if (item != null) {
+        _selectedTids.add(item.tid);
+        _selectedItems[item.tid] = item;
+      }
+    });
+  }
+
+  void _toggleSelectItem(ForumThreadItem item) {
+    setState(() {
+      if (_selectedTids.contains(item.tid)) {
+        _selectedTids.remove(item.tid);
+        _selectedItems.remove(item.tid);
+      } else {
+        _selectedTids.add(item.tid);
+        _selectedItems[item.tid] = item;
+      }
+    });
+  }
+
+  void _toggleSelectAll() {
+    setState(() {
+      if (_selectedTids.length == _threadList.length && _threadList.isNotEmpty) {
+        _selectedTids.clear();
+        _selectedItems.clear();
+      } else {
+        for (final item in _threadList) {
+          _selectedTids.add(item.tid);
+          _selectedItems[item.tid] = item;
+        }
+      }
+    });
   }
 
   // Dialog for direct URL input -> PDF generation
@@ -511,29 +597,47 @@ class _MainScreenState extends State<MainScreen> {
         } catch (_) {}
       }
     }
+    D2PdfConverter.stopKeepAlive();
     setState(() {
       _isConverting = false;
+      _isBatchConverting = false;
       _isCancelRequested = false;
       _conversionStatus = '已取消生成';
     });
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已取消本次 PDF 生成')),
+        const SnackBar(content: Text('已取消本次生成任务')),
       );
     }
   }
 
-  // Start converting a specific thread to PDF in Download/D2PDF
-  Future<void> _startGeneratePdf(ForumThreadItem item) async {
-    if (_isConverting) return;
-
-    setState(() {
-      _isConverting = true;
-      _isCancelRequested = false;
-      _convertingThreadTitle = item.title;
-      _conversionProgress = 0.05;
-      _conversionStatus = '正在分析帖子总页数...';
-    });
+  // Convert a single thread to PDF in Download/D2PDF
+  Future<File?> _convertSingleThreadToPdf(
+    ForumThreadItem item, {
+    bool isBatch = false,
+    int batchIndex = 0,
+    int batchTotal = 0,
+  }) async {
+    if (!isBatch) {
+      if (_isConverting) return null;
+      setState(() {
+        _isConverting = true;
+        _isCancelRequested = false;
+        _convertingThreadTitle = item.title;
+        _conversionProgress = 0.05;
+        _conversionStatus = '正在分析帖子总页数...';
+      });
+      await D2PdfConverter.startKeepAlive(
+        title: 'HiPDA D2PDF 正在生成',
+        content: item.title,
+      );
+    } else {
+      setState(() {
+        _convertingThreadTitle = item.title;
+        _conversionProgress = (batchIndex - 1) / batchTotal;
+        _conversionStatus = '批量进度 ($batchIndex/$batchTotal): 正在分析帖子总页数...';
+      });
+    }
 
     try {
       final controller = _converterWebViewController;
@@ -557,7 +661,7 @@ class _MainScreenState extends State<MainScreen> {
 
       if (_isCancelRequested) {
         _finishCancellation([]);
-        return;
+        return null;
       }
 
       await Future.delayed(const Duration(milliseconds: 1000));
@@ -591,13 +695,17 @@ class _MainScreenState extends State<MainScreen> {
 
       if (_isCancelRequested) {
         _finishCancellation([]);
-        return;
+        return null;
       }
 
       setState(() {
         _convertingThreadTitle = actualTitle;
-        _conversionStatus = '检测到共 $totalPages 页，开始渲染并导出...';
-        _conversionProgress = 0.1;
+        _conversionStatus = isBatch
+            ? '批量进度 ($batchIndex/$batchTotal): 共 $totalPages 页，开始渲染...'
+            : '检测到共 $totalPages 页，开始渲染并导出...';
+        _conversionProgress = isBatch
+            ? ((batchIndex - 1 + 0.05) / batchTotal)
+            : 0.1;
       });
 
       final tempDir = await getTemporaryDirectory();
@@ -606,12 +714,17 @@ class _MainScreenState extends State<MainScreen> {
       for (int page = 1; page <= totalPages; page++) {
         if (_isCancelRequested) {
           _finishCancellation(pagePdfs);
-          return;
+          return null;
         }
 
+        final double singlePageFraction = (page - 1) / totalPages;
         setState(() {
-          _conversionStatus = '正在拉取第 $page / $totalPages 页数据 (若内容/图片较多请耐心等待)...';
-          _conversionProgress = 0.1 + (0.75 * (page - 1) / totalPages);
+          _conversionStatus = isBatch
+              ? '批量进度 ($batchIndex/$batchTotal): 正在拉取第 $page / $totalPages 页数据...'
+              : '正在拉取第 $page / $totalPages 页数据 (若内容/图片较多请耐心等待)...';
+          _conversionProgress = isBatch
+              ? ((batchIndex - 1 + singlePageFraction) / batchTotal)
+              : (0.1 + (0.75 * singlePageFraction));
         });
 
         if (page > 1) {
@@ -621,7 +734,7 @@ class _MainScreenState extends State<MainScreen> {
 
         if (_isCancelRequested) {
           _finishCancellation(pagePdfs);
-          return;
+          return null;
         }
 
         // Query image count to provide accurate progress feedback
@@ -651,7 +764,7 @@ class _MainScreenState extends State<MainScreen> {
 
         if (_isCancelRequested) {
           _finishCancellation(pagePdfs);
-          return;
+          return null;
         }
 
         setState(() {
@@ -1093,18 +1206,22 @@ class _MainScreenState extends State<MainScreen> {
 
         if (_isCancelRequested) {
           _finishCancellation(pagePdfs);
-          return;
+          return null;
         }
       }
 
       if (_isCancelRequested) {
         _finishCancellation(pagePdfs);
-        return;
+        return null;
       }
 
       setState(() {
-        _conversionStatus = '正在合并保存到手机 Download/D2PDF 目录...';
-        _conversionProgress = 0.92;
+        _conversionStatus = isBatch
+            ? '批量进度 ($batchIndex/$batchTotal): 正在合并保存到 Download/D2PDF...'
+            : '正在合并保存到手机 Download/D2PDF 目录...';
+        _conversionProgress = isBatch
+            ? ((batchIndex - 1 + 0.95) / batchTotal)
+            : 0.92;
       });
 
       // Target directory: Download/D2PDF
@@ -1123,52 +1240,207 @@ class _MainScreenState extends State<MainScreen> {
         }
       }
 
-      setState(() {
-        _isConverting = false;
-        _isCancelRequested = false;
-        _conversionProgress = 1.0;
-        _conversionStatus = '全部 $totalPages 页生成完毕！';
-      });
+      if (!isBatch) {
+        await D2PdfConverter.stopKeepAlive();
+        setState(() {
+          _isConverting = false;
+          _isCancelRequested = false;
+          _conversionProgress = 1.0;
+          _conversionStatus = '全部 $totalPages 页生成完毕！';
+        });
 
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('PDF 生成成功'),
-            content: Text(
-              '已成功生成并保存到手机目录：\n\n${finalPdfFile.path}\n\n文件名: $fileName',
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('PDF 生成成功'),
+              content: Text(
+                '已成功生成并保存到手机目录：\n\n${finalPdfFile.path}\n\n文件名: $fileName',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('确定'),
+                ),
+                FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _openGeneratedPdf(finalPdfFile.path);
+                  },
+                  icon: const Icon(Icons.open_in_new),
+                  label: const Text('立即打开'),
+                ),
+              ],
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('确定'),
-              ),
-              FilledButton.icon(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _openGeneratedPdf(finalPdfFile.path);
-                },
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('立即打开'),
-              ),
-            ],
-          ),
-        );
+          );
+        }
       }
+
+      return finalPdfFile;
     } catch (e) {
       if (_isCancelRequested) {
         _finishCancellation([]);
-        return;
+        return null;
       }
+      if (!isBatch) {
+        await D2PdfConverter.stopKeepAlive();
+        setState(() {
+          _isConverting = false;
+          _conversionStatus = '生成失败: $e';
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('生成错误: $e')),
+          );
+        }
+      }
+      return null;
+    }
+  }
+
+  void _startGeneratePdf(ForumThreadItem item) {
+    _convertSingleThreadToPdf(item, isBatch: false);
+  }
+
+  void _confirmStartBatchGenerate() {
+    if (_selectedItems.isEmpty) return;
+    final total = _selectedItems.length;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('开始批量生成 PDF'),
+        content: Text(
+          '已选定 $total 个帖子进行批量生成。\n\n批量生成时应用已启动前台保活服务与唤醒锁，支持息屏与后台平稳运行。\n\n是否立即开始？',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('取消'),
+          ),
+          FilledButton.icon(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _executeBatchGeneration();
+            },
+            icon: const Icon(Icons.playlist_play),
+            label: Text('开始生成 ($total 篇)'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _executeBatchGeneration() async {
+    if (_isConverting || _isBatchConverting) return;
+    if (_selectedItems.isEmpty) return;
+
+    final itemsToProcess = List<ForumThreadItem>.from(_selectedItems.values);
+    final totalCount = itemsToProcess.length;
+
+    setState(() {
+      _isConverting = true;
+      _isBatchConverting = true;
+      _isCancelRequested = false;
+      _batchTotalCount = totalCount;
+      _batchCurrentIndex = 0;
+      _batchSuccessTitles.clear();
+      _batchFailedTitles.clear();
+      _conversionProgress = 0.0;
+      _conversionStatus = '正在初始化批量生成任务 (共 $totalCount 篇)...';
+    });
+
+    await D2PdfConverter.startKeepAlive(
+      title: 'HiPDA D2PDF 批量生成中',
+      content: '准备生成 (0/$totalCount)',
+    );
+
+    for (int i = 0; i < totalCount; i++) {
+      if (_isCancelRequested) {
+        break;
+      }
+
+      final item = itemsToProcess[i];
+      final currentNum = i + 1;
+
       setState(() {
-        _isConverting = false;
-        _conversionStatus = '生成失败: $e';
+        _batchCurrentIndex = currentNum;
+        _convertingThreadTitle = '[$currentNum/$totalCount] ${item.title}';
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('生成错误: $e')),
-        );
+
+      await D2PdfConverter.updateKeepAlive(
+        title: 'HiPDA 批量生成 ($currentNum/$totalCount)',
+        content: item.title,
+        progress: currentNum,
+        max: totalCount,
+      );
+
+      final result = await _convertSingleThreadToPdf(
+        item,
+        isBatch: true,
+        batchIndex: currentNum,
+        batchTotal: totalCount,
+      );
+
+      if (_isCancelRequested) {
+        break;
       }
+
+      if (result != null) {
+        _batchSuccessTitles.add(item.title);
+      } else {
+        _batchFailedTitles.add(item.title);
+      }
+    }
+
+    await D2PdfConverter.stopKeepAlive();
+
+    final isCancelled = _isCancelRequested;
+    final successCount = _batchSuccessTitles.length;
+    final failCount = _batchFailedTitles.length;
+
+    setState(() {
+      _isConverting = false;
+      _isBatchConverting = false;
+      _isCancelRequested = false;
+      _conversionProgress = 1.0;
+      _conversionStatus = isCancelled
+          ? '批量生成已取消 (成功: $successCount, 失败/未完成: ${totalCount - successCount})'
+          : '批量生成完毕！成功 $successCount 篇，失败 $failCount 篇';
+    });
+
+    _exitMultiSelectMode();
+
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(isCancelled ? '批量生成已中止' : '批量生成已完成'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '任务概览：\n总共选定: $totalCount 篇\n成功生成: $successCount 篇\n失败/跳过: $failCount 篇\n\nPDF 文件均已保存至手机 Download/D2PDF 目录。',
+                  style: const TextStyle(fontSize: 14, height: 1.5),
+                ),
+                if (_batchFailedTitles.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  const Text('失败列表：', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                  ..._batchFailedTitles.map((t) => Text('• $t', style: const TextStyle(fontSize: 12, color: Colors.red))),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('我知道了'),
+            ),
+          ],
+        ),
+      );
     }
   }
 
@@ -1219,92 +1491,134 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Hi! PDA',
-          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
-        ),
-        backgroundColor: const Color(0xFF192D50),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: Icon(
-              _currentViewMode == 'favorites' ? Icons.bookmark : Icons.bookmark_border,
-              color: _currentViewMode == 'favorites' ? Colors.amber : Colors.white,
-            ),
-            tooltip: _currentViewMode == 'favorites' ? '返回Discovery板块' : '我的收藏',
-            onPressed: _toggleFavoritesView,
-          ),
-          IconButton(
-            icon: const Icon(Icons.link),
-            tooltip: '输入网址生成PDF',
-            onPressed: _openDirectUrlDialog,
-          ),
-          if (_isLoggedIn)
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              tooltip: '刷新帖子列表',
-              onPressed: () => _loadForumPage(_currentForumPage),
-            ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert),
-            onSelected: (val) {
-              if (val == 'direct_url') {
-                _openDirectUrlDialog();
-              } else if (val == 'settings') {
-                _openSettingsDialog();
-              } else if (val == 'login') {
-                _openLoginDialog();
-              } else if (val == 'logout') {
-                _clearLoginSession();
-              }
-            },
-            itemBuilder: (ctx) => [
-              const PopupMenuItem(
-                value: 'direct_url',
-                child: Row(
-                  children: [
-                    Icon(Icons.link, size: 20, color: Color(0xFF192D50)),
-                    SizedBox(width: 10),
-                    Text('输入网址生成 PDF'),
-                  ],
-                ),
+      appBar: _isMultiSelectMode
+          ? AppBar(
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: '退出多选',
+                onPressed: _exitMultiSelectMode,
               ),
-              PopupMenuItem(
-                value: 'settings',
-                child: Row(
-                  children: [
-                    const Icon(Icons.tune, size: 20, color: Color(0xFF192D50)),
-                    const SizedBox(width: 10),
-                    Text('排版与字体设置 (${_pdfWidth}px / ${_fontSize}px)'),
-                  ],
-                ),
+              title: Text(
+                '已选择 ${_selectedTids.length} 篇',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
-              PopupMenuItem(
-                value: 'login',
-                child: Row(
-                  children: [
-                    const Icon(Icons.login, size: 20, color: Color(0xFF192D50)),
-                    const SizedBox(width: 10),
-                    Text(_isLoggedIn ? '重新登录/切换账号' : '登录论坛 (CF认证)'),
-                  ],
-                ),
-              ),
-              if (_isLoggedIn)
-                const PopupMenuItem(
-                  value: 'logout',
-                  child: Row(
-                    children: [
-                      Icon(Icons.logout, size: 20, color: Colors.red),
-                      SizedBox(width: 10),
-                      Text('退出登录 (清除Cookie)'),
-                    ],
+              backgroundColor: const Color(0xFF192D50),
+              foregroundColor: Colors.white,
+              actions: [
+                TextButton.icon(
+                  onPressed: _toggleSelectAll,
+                  icon: Icon(
+                    (_threadList.isNotEmpty && _selectedTids.length == _threadList.length)
+                        ? Icons.deselect
+                        : Icons.select_all,
+                    color: Colors.white,
+                    size: 18,
+                  ),
+                  label: Text(
+                    (_threadList.isNotEmpty && _selectedTids.length == _threadList.length)
+                        ? '取消全选'
+                        : '全选',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                 ),
-            ],
-          ),
-        ],
-      ),
+                FilledButton.icon(
+                  onPressed: _selectedTids.isEmpty || _isConverting
+                      ? null
+                      : _confirmStartBatchGenerate,
+                  icon: const Icon(Icons.download_for_offline, size: 16),
+                  label: Text('批量生成(${_selectedTids.length})'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Colors.amber.shade700,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+            )
+          : AppBar(
+              title: const Text(
+                'Hi! PDA',
+                style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.8),
+              ),
+              backgroundColor: const Color(0xFF192D50),
+              foregroundColor: Colors.white,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.checklist_rtl),
+                  tooltip: '批量选择',
+                  onPressed: _threadList.isEmpty ? null : () => _enterMultiSelectMode(),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.link),
+                  tooltip: '输入网址生成PDF',
+                  onPressed: _openDirectUrlDialog,
+                ),
+                if (_isLoggedIn)
+                  IconButton(
+                    icon: const Icon(Icons.refresh),
+                    tooltip: '刷新帖子列表',
+                    onPressed: () => _loadForumPage(_currentForumPage),
+                  ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (val) {
+                    if (val == 'direct_url') {
+                      _openDirectUrlDialog();
+                    } else if (val == 'settings') {
+                      _openSettingsDialog();
+                    } else if (val == 'login') {
+                      _openLoginDialog();
+                    } else if (val == 'logout') {
+                      _clearLoginSession();
+                    }
+                  },
+                  itemBuilder: (ctx) => [
+                    const PopupMenuItem(
+                      value: 'direct_url',
+                      child: Row(
+                        children: [
+                          Icon(Icons.link, size: 20, color: Color(0xFF192D50)),
+                          SizedBox(width: 10),
+                          Text('输入网址生成 PDF'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'settings',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.tune, size: 20, color: Color(0xFF192D50)),
+                          const SizedBox(width: 10),
+                          Text('排版与字体设置 (${_pdfWidth}px / ${_fontSize}px)'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'login',
+                      child: Row(
+                        children: [
+                          const Icon(Icons.login, size: 20, color: Color(0xFF192D50)),
+                          const SizedBox(width: 10),
+                          Text(_isLoggedIn ? '重新登录/切换账号' : '登录论坛 (CF认证)'),
+                        ],
+                      ),
+                    ),
+                    if (_isLoggedIn)
+                      const PopupMenuItem(
+                        value: 'logout',
+                        child: Row(
+                          children: [
+                            Icon(Icons.logout, size: 20, color: Colors.red),
+                            SizedBox(width: 10),
+                            Text('退出登录 (清除Cookie)'),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
       body: Stack(
         children: [
           // Background rendering InAppWebView (completely shielded and hidden from UI view and touch)
@@ -1375,7 +1689,9 @@ class _MainScreenState extends State<MainScreen> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              '正在生成: $_convertingThreadTitle',
+                              _isBatchConverting
+                                  ? '批量任务 [$_batchCurrentIndex/$_batchTotalCount]: $_convertingThreadTitle'
+                                  : '正在生成: $_convertingThreadTitle',
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -1470,6 +1786,22 @@ class _MainScreenState extends State<MainScreen> {
                 Expanded(
                   child: Column(
                     children: [
+                      // Section pills: Discovery | 我的收藏 | 我的帖子
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        color: Colors.white,
+                        child: Row(
+                          children: [
+                            _buildSectionTab('discovery', 'Discovery', Icons.explore_outlined),
+                            const SizedBox(width: 8),
+                            _buildSectionTab('favorites', '我的收藏', Icons.bookmark_outline),
+                            const SizedBox(width: 8),
+                            _buildSectionTab('my_threads', '我的帖子', Icons.article_outlined),
+                          ],
+                        ),
+                      ),
+                      const Divider(height: 1, thickness: 1),
+
                       // Forum sub-header & pagination control
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1481,7 +1813,7 @@ class _MainScreenState extends State<MainScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Text(
-                                  '${_currentViewMode == 'favorites' ? '我的收藏' : 'Discovery'} (第 $_currentForumPage 页)',
+                                  '$_currentViewModeLabel (第 $_currentForumPage 页)',
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                                 ),
                                 const SizedBox(width: 8),
@@ -1538,13 +1870,13 @@ class _MainScreenState extends State<MainScreen> {
                       // Thread items list
                       Expanded(
                         child: _isLoadingThreads
-                            ? const Center(
+                            ? Center(
                                 child: Column(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    CircularProgressIndicator(),
-                                    SizedBox(height: 12),
-                                    Text('正在加载 Discovery 板块帖子...', style: TextStyle(color: Colors.grey)),
+                                    const CircularProgressIndicator(),
+                                    const SizedBox(height: 12),
+                                    Text('正在加载 $_currentViewModeLabel 帖子...', style: const TextStyle(color: Colors.grey)),
                                   ],
                                 ),
                               )
@@ -1587,8 +1919,30 @@ class _MainScreenState extends State<MainScreen> {
                                     separatorBuilder: (ctx, i) => const Divider(height: 1),
                                     itemBuilder: (ctx, index) {
                                       final item = _threadList[index];
+                                      final isSelected = _selectedTids.contains(item.tid);
                                       return ListTile(
-                                        onTap: () => _openThreadPreview(item),
+                                        selected: _isMultiSelectMode && isSelected,
+                                        selectedTileColor: Colors.amber.shade50.withOpacity(0.6),
+                                        leading: _isMultiSelectMode
+                                            ? Checkbox(
+                                                value: isSelected,
+                                                onChanged: (_) => _toggleSelectItem(item),
+                                              )
+                                            : null,
+                                        onTap: () {
+                                          if (_isMultiSelectMode) {
+                                            _toggleSelectItem(item);
+                                          } else {
+                                            _openThreadPreview(item);
+                                          }
+                                        },
+                                        onLongPress: () {
+                                          if (_isMultiSelectMode) {
+                                            _toggleSelectItem(item);
+                                          } else {
+                                            _enterMultiSelectMode(item);
+                                          }
+                                        },
                                         title: Text(
                                           item.title,
                                           style: const TextStyle(
@@ -1616,16 +1970,18 @@ class _MainScreenState extends State<MainScreen> {
                                             ],
                                           ),
                                         ),
-                                        trailing: ElevatedButton.icon(
-                                          onPressed: _isConverting ? null : () => _startGeneratePdf(item),
-                                          icon: const Icon(Icons.picture_as_pdf, size: 16),
-                                          label: const Text('生成PDF', style: TextStyle(fontSize: 12)),
-                                          style: ElevatedButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                            backgroundColor: const Color(0xFF192D50),
-                                            foregroundColor: Colors.white,
-                                          ),
-                                        ),
+                                        trailing: _isMultiSelectMode
+                                            ? null
+                                            : ElevatedButton.icon(
+                                                onPressed: _isConverting ? null : () => _startGeneratePdf(item),
+                                                icon: const Icon(Icons.picture_as_pdf, size: 16),
+                                                label: const Text('生成PDF', style: TextStyle(fontSize: 12)),
+                                                style: ElevatedButton.styleFrom(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                  backgroundColor: const Color(0xFF192D50),
+                                                  foregroundColor: Colors.white,
+                                                ),
+                                              ),
                                       );
                                     },
                                   ),
@@ -1636,6 +1992,80 @@ class _MainScreenState extends State<MainScreen> {
             ],
           ),
         ],
+      ),
+      bottomNavigationBar: (_isMultiSelectMode && _selectedTids.isNotEmpty)
+          ? SafeArea(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      offset: const Offset(0, -2),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '已选中 ${_selectedTids.length} 篇帖子',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                      ),
+                    ),
+                    FilledButton.icon(
+                      onPressed: _isConverting ? null : _confirmStartBatchGenerate,
+                      icon: const Icon(Icons.download_for_offline),
+                      label: Text('开始批量生成 (${_selectedTids.length})'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF192D50),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : null,
+    );
+  }
+
+  Widget _buildSectionTab(String mode, String label, IconData icon) {
+    final isSelected = _currentViewMode == mode;
+    return Expanded(
+      child: Material(
+        color: isSelected ? const Color(0xFF192D50) : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: (_isLoadingThreads || _isConverting) ? null : () => _switchViewMode(mode),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            alignment: Alignment.center,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 15,
+                  color: isSelected ? Colors.white : Colors.grey.shade700,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    color: isSelected ? Colors.white : Colors.grey.shade800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
