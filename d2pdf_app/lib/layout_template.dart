@@ -102,18 +102,18 @@ class LayoutTemplate {
     this.customCss = '',
   }) : widthConfigs = widthConfigs ?? {};
 
-  /// 获取简洁的两字名称：气泡，经典，极简，还原；新增自定义模板取前两个字
+  /// 获取简洁的两字名称：内置模板显示 气泡/经典/极简/还原；新增与自定义模板取模板名称前两个字
   String get shortName {
-    if (id == 'builtin_card' || layoutMode == 'card' || name.contains('气泡') || name.contains('卡片')) {
+    if (id == 'builtin_card') {
       return '气泡';
     }
-    if (id == 'builtin_full_forum' || layoutMode == 'split' || name.contains('经典') || name.contains('左右')) {
+    if (id == 'builtin_full_forum') {
       return '经典';
     }
-    if (id == 'builtin_minimal' || layoutMode == 'minimal' || name.contains('极简')) {
+    if (id == 'builtin_minimal') {
       return '极简';
     }
-    if (id == 'builtin_raw' || layoutMode == 'raw' || name.contains('原汁') || name.contains('还原')) {
+    if (id == 'builtin_raw') {
       return '还原';
     }
     final trimmed = name.trim();

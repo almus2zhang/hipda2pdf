@@ -46,7 +46,9 @@ class TemplateRenderer {
     final String cardBgColor = template.cardBackgroundColor;
     final bool enableAlternateBubbleColor = template.enableAlternateBubbleColor;
     final String alternateBubbleColor = template.alternateBubbleColor;
-    final String pageBgColor = (layoutMode == 'card') ? template.pageBackgroundColor : '#ffffff';
+    final String pageBgColor = (layoutMode == 'card' || layoutMode == 'magazine' || layoutMode == 'timeline')
+        ? template.pageBackgroundColor
+        : (layoutMode == 'novel' ? '#faf8f5' : '#ffffff');
     final int cardSpacing = template.getCardSpacingForWidth(width);
     final int effectiveAvatarSize = template.getAvatarSizeForWidth(width);
     final int authorWidth = template.getAuthorWidthForWidth(width);
@@ -130,6 +132,107 @@ class TemplateRenderer {
         var tables = document.querySelectorAll('#postlist table[id^="pid"], table[id^="pid"]');
         if (tables.length === 0) {
           tables = document.querySelectorAll('table.viewthread, #postlist > table');
+        }
+
+        function extractPostMeta(table, contentTd, authorTd) {
+          var avatarSrc = '';
+          if (authorTd) {
+            var avImg = authorTd.querySelector('.avatar img') || authorTd.querySelector('img[src*="avatar"]') || authorTd.querySelector('img');
+            if (avImg) {
+              var src = avImg.getAttribute('file') || avImg.src || '';
+              if (src && src.indexOf('noavatar') === -1 && src.indexOf('none.gif') === -1) {
+                avatarSrc = src;
+              }
+            }
+          }
+
+          var username = '';
+          if (authorTd) {
+            var userLink = authorTd.querySelector('.postinfo a') || authorTd.querySelector('cite a') || authorTd.querySelector('a[href*="space.php"]');
+            if (userLink) username = userLink.innerText.trim();
+          }
+          if (!username && contentTd) {
+            var cl = contentTd.querySelector('a[href*="space.php"]');
+            if (cl) username = cl.innerText.trim();
+          }
+
+          var otherInfoHtml = '';
+          if (authorTd) {
+            var authorClone = authorTd.cloneNode(true);
+            var av = authorClone.querySelector('.avatar');
+            if (av) av.remove();
+            var cite = authorClone.querySelector('cite');
+            if (cite) cite.remove();
+            var pi = authorClone.querySelector('.postinfo');
+            if (pi) pi.remove();
+            otherInfoHtml = authorClone.innerHTML.trim();
+          }
+
+          var postTime = '';
+          var floorText = '';
+          var postInfo = contentTd ? contentTd.querySelector('.postinfo') : null;
+          if (postInfo) {
+            var strongEl = postInfo.querySelector('strong');
+            if (strongEl) {
+              var postnumA = strongEl.querySelector('a[id^="postnum"]') || strongEl.querySelector('a');
+              if (postnumA) {
+                floorText = postnumA.innerText.replace(/\\s+/g, ' ').trim();
+              } else {
+                var strongClone = strongEl.cloneNode(true);
+                strongClone.querySelectorAll('.rpostno, a, input, span').forEach(function(r) { r.remove(); });
+                floorText = strongClone.innerText.replace(/\\s+/g, ' ').trim();
+              }
+            }
+            var emList = postInfo.querySelectorAll('em');
+            emList.forEach(function(em) {
+              var t = em.innerText.trim();
+              if (t.indexOf('发表于') !== -1 || /\\d{4}-\\d{1,2}-\\d{1,2}/.test(t)) postTime = t;
+            });
+            if (!postTime) {
+              var m = postInfo.innerText.match(/发表于\\s*[\\d\\-:\\s]+/);
+              if (m) postTime = m[0].trim();
+            }
+            postInfo.style.display = 'none';
+          }
+
+          return {
+            avatarSrc: avatarSrc,
+            username: username,
+            otherInfoHtml: otherInfoHtml,
+            postTime: postTime,
+            floorText: floorText
+          };
+        }
+
+        function createAvatarElement(src, uName, size, round, border, uSize) {
+          if (src) {
+            var img = document.createElement('img');
+            img.src = src;
+            img.className = 'd2pdf-avatar-img';
+            img.style.cssText = 'width: ' + size + 'px !important; height: ' + size + 'px !important; min-width: ' + size + 'px !important; ' +
+              'border-radius: ' + (round ? '50%' : '4px') + ' !important; object-fit: cover !important; display: block !important; ' +
+              'border: 1px solid ' + border + ' !important; flex-shrink: 0 !important;';
+            img.onerror = function() {
+              var p = this.parentElement;
+              if (!p) return;
+              var ph = document.createElement('div');
+              ph.className = 'd2pdf-avatar-placeholder';
+              ph.style.cssText = 'width: ' + size + 'px !important; height: ' + size + 'px !important; min-width: ' + size + 'px !important; ' +
+                'border-radius: ' + (round ? '50%' : '4px') + ' !important; background: #e0e7ff !important; color: #3730a3 !important; ' +
+                'display: flex !important; align-items: center !important; justify-content: center !important; font-weight: bold !important; font-size: ' + uSize + 'px !important; border: 1px solid ' + border + ' !important; flex-shrink: 0 !important;';
+              ph.innerText = uName ? uName.substring(0, 1).toUpperCase() : '?';
+              p.replaceChild(ph, this);
+            };
+            return img;
+          } else {
+            var ph = document.createElement('div');
+            ph.className = 'd2pdf-avatar-placeholder';
+            ph.style.cssText = 'width: ' + size + 'px !important; height: ' + size + 'px !important; min-width: ' + size + 'px !important; ' +
+              'border-radius: ' + (round ? '50%' : '4px') + ' !important; background: #e0e7ff !important; color: #3730a3 !important; ' +
+              'display: flex !important; align-items: center !important; justify-content: center !important; font-weight: bold !important; font-size: ' + uSize + 'px !important; flex-shrink: 0 !important; border: 1px solid ' + border + ' !important;';
+            ph.innerText = uName ? uName.substring(0, 1).toUpperCase() : '?';
+            return ph;
+          }
         }
 
         if (mode === 'card') {
@@ -680,6 +783,350 @@ class TemplateRenderer {
               }
             }
           });
+        } else if (mode === 'magazine') {
+          // ====== 杂志画报模式：顶部通栏画报横幅，大图留白，高定图文风格 ======
+          tables.forEach(function(table, idx) {
+            var authorTd = table.querySelector('.postauthor');
+            var contentTd = table.querySelector('.postcontent');
+            if (!contentTd) return;
+
+            var meta = extractPostMeta(table, contentTd, authorTd);
+
+            table.querySelectorAll('.postauthor, .postbottom, .postactions, tr.threadad, tr.threadsep, tr.line, td.line, .adcontent').forEach(function(el) {
+              el.style.display = 'none';
+              var r = el.closest('tr');
+              if (r && (r.parentNode === table || (table.tBodies && Array.from(table.tBodies).includes(r.parentNode)))) {
+                r.style.display = 'none';
+              }
+            });
+
+            table.style.width = '100%';
+            table.style.maxWidth = '100%';
+            table.style.display = 'block';
+            table.style.margin = '0 0 ${cardSpacing > 0 ? cardSpacing : 18}px 0';
+            table.style.border = '${cardBorderWidth > 0 ? cardBorderWidth : 1}px solid $cardBorderColor';
+            table.style.borderRadius = '${cardBorderRadius}px';
+            table.style.background = '$cardBgColor';
+            table.style.boxShadow = '0 2px 6px rgba(0, 0, 0, 0.04)';
+            table.style.boxSizing = 'border-box';
+            table.style.overflow = 'hidden';
+
+            contentTd.style.display = 'block';
+            contentTd.style.width = '100%';
+            contentTd.style.maxWidth = '100%';
+            contentTd.style.padding = '0';
+            contentTd.style.boxSizing = 'border-box';
+            contentTd.style.background = 'transparent';
+
+            var oldHeader = contentTd.querySelector('.d2pdf-custom-header');
+            if (oldHeader) oldHeader.remove();
+
+            var header = document.createElement('div');
+            header.className = 'd2pdf-custom-header d2pdf-magazine-header';
+            header.style.cssText = 'display: flex !important; align-items: center !important; justify-content: space-between !important; ' +
+              'padding: 8px 16px !important; width: 100% !important; box-sizing: border-box !important; ' +
+              'background: #f8fafc !important; border-bottom: 2px solid #0f172a !important;';
+
+            var left = document.createElement('div');
+            left.style.cssText = 'display: flex !important; align-items: center !important; gap: 8px !important; flex: 1 !important; min-width: 0 !important;';
+
+            if ($showAvatar) {
+              var avEl = createAvatarElement(meta.avatarSrc, meta.username, $effectiveAvatarSize, $avatarRound, '$avatarBorder', $uSize);
+              left.appendChild(avEl);
+            }
+
+            var userCol = document.createElement('div');
+            userCol.style.cssText = 'display: flex !important; flex-direction: column !important; min-width: 0 !important;';
+
+            if ($showUsername) {
+              var uSpan = document.createElement('span');
+              uSpan.style.cssText = 'font-size: ${uSize}px !important; font-weight: bold !important; color: $uColor !important; letter-spacing: 0.5px !important;';
+              uSpan.innerText = meta.username || '作者';
+              userCol.appendChild(uSpan);
+            }
+            if ($showOtherInfo && meta.otherInfoHtml) {
+              var oDiv = document.createElement('div');
+              oDiv.style.cssText = 'font-size: ${otherSize}px !important; color: $otherColor !important; line-height: 1.2 !important;';
+              oDiv.innerHTML = meta.otherInfoHtml;
+              userCol.appendChild(oDiv);
+            }
+            left.appendChild(userCol);
+            header.appendChild(left);
+
+            var right = document.createElement('div');
+            right.style.cssText = 'display: flex !important; align-items: center !important; gap: 8px !important; flex-shrink: 0 !important;';
+
+            if ($showPostTime && meta.postTime) {
+              var tSpan = document.createElement('span');
+              tSpan.style.cssText = 'color: $postTimeColor !important; font-size: ${metaSize}px !important; text-transform: uppercase !important;';
+              tSpan.innerText = meta.postTime;
+              right.appendChild(tSpan);
+            }
+            if ($showFloorBadge && meta.floorText) {
+              var fSpan = document.createElement('span');
+              fSpan.style.cssText = 'background: #0f172a !important; color: #ffffff !important; padding: 2px 8px !important; border-radius: 4px !important; font-weight: bold !important; font-size: ${floorSize}px !important;';
+              fSpan.innerText = meta.floorText;
+              right.appendChild(fSpan);
+            }
+            header.appendChild(right);
+            contentTd.insertBefore(header, contentTd.firstChild);
+
+            contentTd.querySelectorAll('table, .postmessage, .t_msgfont, .t_msgfontfix, .defaultpost').forEach(function(el) {
+              el.style.width = '100%';
+              el.style.maxWidth = '100%';
+              el.style.boxSizing = 'border-box';
+            });
+          });
+
+        } else if (mode === 'timeline') {
+          // ====== 时间轴流模式：左侧贯穿垂直时间轴，轴节点楼层徽章，右侧内容流式递进 ======
+          tables.forEach(function(table, idx) {
+            var authorTd = table.querySelector('.postauthor');
+            var contentTd = table.querySelector('.postcontent');
+            if (!contentTd) return;
+
+            var meta = extractPostMeta(table, contentTd, authorTd);
+
+            table.querySelectorAll('.postauthor, .postbottom, .postactions, tr.threadad, tr.threadsep, tr.line, td.line, .adcontent').forEach(function(el) {
+              el.style.display = 'none';
+              var r = el.closest('tr');
+              if (r && (r.parentNode === table || (table.tBodies && Array.from(table.tBodies).includes(r.parentNode)))) {
+                r.style.display = 'none';
+              }
+            });
+
+            table.style.width = '100%';
+            table.style.maxWidth = '100%';
+            table.style.display = 'block';
+            table.style.position = 'relative';
+            table.style.paddingLeft = '36px';
+            table.style.margin = '0 0 ${cardSpacing > 0 ? cardSpacing : 14}px 0';
+            table.style.background = 'transparent';
+            table.style.border = 'none';
+            table.style.boxSizing = 'border-box';
+
+            var oldNode = table.querySelector('.d2pdf-timeline-node');
+            if (oldNode) oldNode.remove();
+            var node = document.createElement('div');
+            node.className = 'd2pdf-timeline-node';
+            node.style.cssText = 'position: absolute !important; left: 2px !important; top: 10px !important; width: 22px !important; height: 22px !important; ' +
+              'border-radius: 50% !important; background: $floorColor !important; color: #ffffff !important; font-size: 11px !important; font-weight: bold !important; ' +
+              'display: flex !important; align-items: center !important; justify-content: center !important; z-index: 3 !important; box-shadow: 0 0 0 3px #ffffff !important;';
+            node.innerText = (idx + 1).toString();
+            table.insertBefore(node, table.firstChild);
+
+            contentTd.style.display = 'block';
+            contentTd.style.width = '100%';
+            contentTd.style.maxWidth = '100%';
+            contentTd.style.padding = '0';
+            contentTd.style.boxSizing = 'border-box';
+            contentTd.style.background = '$cardBgColor';
+            contentTd.style.border = '${cardBorderWidth > 0 ? cardBorderWidth : 1}px solid $cardBorderColor';
+            contentTd.style.borderRadius = '${cardBorderRadius > 0 ? cardBorderRadius : 8}px';
+            contentTd.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+            contentTd.style.overflow = 'hidden';
+
+            var oldHeader = contentTd.querySelector('.d2pdf-custom-header');
+            if (oldHeader) oldHeader.remove();
+
+            var header = document.createElement('div');
+            header.className = 'd2pdf-custom-header d2pdf-timeline-header';
+            header.style.cssText = 'display: flex !important; align-items: center !important; justify-content: space-between !important; ' +
+              'padding: 6px 12px !important; width: 100% !important; box-sizing: border-box !important; ' +
+              'background: #f8fafc !important; border-bottom: ${showFloorDivider ? "1px solid #e2e8f0" : "none"} !important;';
+
+            var left = document.createElement('div');
+            left.style.cssText = 'display: flex !important; align-items: center !important; gap: 6px !important; flex: 1 !important; min-width: 0 !important;';
+
+            if ($showAvatar) {
+              var avEl = createAvatarElement(meta.avatarSrc, meta.username, $effectiveAvatarSize, $avatarRound, '$avatarBorder', $uSize);
+              left.appendChild(avEl);
+            }
+
+            if ($showUsername) {
+              var uSpan = document.createElement('span');
+              uSpan.style.cssText = 'font-size: ${uSize}px !important; font-weight: bold !important; color: $uColor !important;';
+              uSpan.innerText = meta.username || '用户';
+              left.appendChild(uSpan);
+            }
+            header.appendChild(left);
+
+            var right = document.createElement('div');
+            right.style.cssText = 'display: flex !important; align-items: center !important; gap: 6px !important; flex-shrink: 0 !important;';
+            if ($showPostTime && meta.postTime) {
+              var tSpan = document.createElement('span');
+              tSpan.style.cssText = 'color: $postTimeColor !important; font-size: ${metaSize}px !important;';
+              tSpan.innerText = meta.postTime;
+              right.appendChild(tSpan);
+            }
+            if ($showFloorBadge && meta.floorText) {
+              var fSpan = document.createElement('span');
+              fSpan.style.cssText = 'font-weight: bold !important; color: $floorColor !important; font-size: ${floorSize}px !important;';
+              fSpan.innerText = meta.floorText;
+              right.appendChild(fSpan);
+            }
+            header.appendChild(right);
+            contentTd.insertBefore(header, contentTd.firstChild);
+
+            contentTd.querySelectorAll('table, .postmessage, .t_msgfont, .t_msgfontfix, .defaultpost').forEach(function(el) {
+              el.style.width = '100%';
+              el.style.maxWidth = '100%';
+              el.style.boxSizing = 'border-box';
+            });
+          });
+
+        } else if (mode === 'novel') {
+          // ====== 典雅书卷模式：无干扰纸质书籍装帧风格，章节式楼层标号 ======
+          tables.forEach(function(table, idx) {
+            var authorTd = table.querySelector('.postauthor');
+            var contentTd = table.querySelector('.postcontent');
+            if (!contentTd) return;
+
+            var meta = extractPostMeta(table, contentTd, authorTd);
+
+            table.querySelectorAll('.postauthor, .postbottom, .postactions, tr.threadad, tr.threadsep, tr.line, td.line, .adcontent').forEach(function(el) {
+              el.style.display = 'none';
+              var r = el.closest('tr');
+              if (r && (r.parentNode === table || (table.tBodies && Array.from(table.tBodies).includes(r.parentNode)))) {
+                r.style.display = 'none';
+              }
+            });
+
+            table.style.width = '100%';
+            table.style.maxWidth = '100%';
+            table.style.display = 'block';
+            table.style.margin = '0 0 20px 0';
+            table.style.padding = '0 0 16px 0';
+            table.style.border = 'none';
+            table.style.borderBottom = '1px dashed #d1c7b7';
+            table.style.background = 'transparent';
+            table.style.boxSizing = 'border-box';
+
+            contentTd.style.display = 'block';
+            contentTd.style.width = '100%';
+            contentTd.style.maxWidth = '100%';
+            contentTd.style.padding = '0';
+            contentTd.style.boxSizing = 'border-box';
+            contentTd.style.background = 'transparent';
+
+            var oldHeader = contentTd.querySelector('.d2pdf-custom-header');
+            if (oldHeader) oldHeader.remove();
+
+            var header = document.createElement('div');
+            header.className = 'd2pdf-custom-header d2pdf-novel-header';
+            header.style.cssText = 'text-align: center !important; padding: 10px 0 !important; width: 100% !important; box-sizing: border-box !important;';
+
+            if ($showFloorBadge) {
+              var chap = document.createElement('div');
+              chap.style.cssText = 'font-size: ${floorSize + 2}px !important; font-weight: bold !important; color: #44403c !important; letter-spacing: 2px !important; margin-bottom: 4px !important;';
+              chap.innerText = '— ' + (meta.floorText || ((idx + 1) + ' 楼')) + ' —';
+              header.appendChild(chap);
+            }
+
+            var sub = document.createElement('div');
+            sub.style.cssText = 'font-size: ${metaSize}px !important; color: #78716c !important; display: flex !important; justify-content: center !important; gap: 8px !important;';
+            if ($showUsername && meta.username) {
+              var u = document.createElement('span');
+              u.innerText = meta.username;
+              sub.appendChild(u);
+            }
+            if ($showPostTime && meta.postTime) {
+              var t = document.createElement('span');
+              t.innerText = meta.postTime;
+              sub.appendChild(t);
+            }
+            header.appendChild(sub);
+            contentTd.insertBefore(header, contentTd.firstChild);
+
+            contentTd.querySelectorAll('table, .postmessage, .t_msgfont, .t_msgfontfix, .defaultpost').forEach(function(el) {
+              el.style.width = '100%';
+              el.style.maxWidth = '100%';
+              el.style.boxSizing = 'border-box';
+            });
+          });
+
+        } else {
+          // ====== 自定义/扩展核心架构通用容器：结构化 DOM 注入，由 customCss 自由驱动 ======
+          tables.forEach(function(table, idx) {
+            var authorTd = table.querySelector('.postauthor');
+            var contentTd = table.querySelector('.postcontent');
+            if (!contentTd) return;
+
+            var meta = extractPostMeta(table, contentTd, authorTd);
+
+            table.querySelectorAll('.postauthor, .postbottom, .postactions, tr.threadad, tr.threadsep, tr.line, td.line, .adcontent').forEach(function(el) {
+              el.style.display = 'none';
+              var r = el.closest('tr');
+              if (r && (r.parentNode === table || (table.tBodies && Array.from(table.tBodies).includes(r.parentNode)))) {
+                r.style.display = 'none';
+              }
+            });
+
+            table.className = 'd2pdf-custom-core-post d2pdf-mode-' + mode;
+            table.style.width = '100%';
+            table.style.maxWidth = '100%';
+            table.style.display = 'block';
+            table.style.margin = '0 0 ${cardSpacing}px 0';
+            table.style.border = '${cardBorderWidth}px solid $cardBorderColor';
+            table.style.borderRadius = '${cardBorderRadius}px';
+            table.style.background = '$cardBgColor';
+            table.style.boxSizing = 'border-box';
+
+            contentTd.style.display = 'block';
+            contentTd.style.width = '100%';
+            contentTd.style.padding = '0';
+            contentTd.style.boxSizing = 'border-box';
+
+            var oldHeader = contentTd.querySelector('.d2pdf-custom-header');
+            if (oldHeader) oldHeader.remove();
+
+            var header = document.createElement('div');
+            header.className = 'd2pdf-custom-header';
+            header.style.cssText = 'display: flex !important; align-items: center !important; justify-content: space-between !important; padding: 6px 12px !important; width: 100% !important; box-sizing: border-box !important; border-bottom: ${showFloorDivider ? "1px solid #e5e7eb" : "none"} !important;';
+
+            var left = document.createElement('div');
+            left.style.cssText = 'display: flex !important; align-items: center !important; gap: 6px !important; flex: 1 !important; min-width: 0 !important;';
+            if ($showAvatar) {
+              var avEl = createAvatarElement(meta.avatarSrc, meta.username, $effectiveAvatarSize, $avatarRound, '$avatarBorder', $uSize);
+              left.appendChild(avEl);
+            }
+            if ($showUsername) {
+              var u = document.createElement('span');
+              u.style.cssText = 'font-size: ${uSize}px !important; font-weight: bold !important; color: $uColor !important;';
+              u.innerText = meta.username || '用户';
+              left.appendChild(u);
+            }
+            if ($showOtherInfo && meta.otherInfoHtml) {
+              var o = document.createElement('div');
+              o.style.cssText = 'font-size: ${otherSize}px !important; color: $otherColor !important;';
+              o.innerHTML = meta.otherInfoHtml;
+              left.appendChild(o);
+            }
+            header.appendChild(left);
+
+            var right = document.createElement('div');
+            right.style.cssText = 'display: flex !important; align-items: center !important; gap: 6px !important; flex-shrink: 0 !important;';
+            if ($showPostTime && meta.postTime) {
+              var t = document.createElement('span');
+              t.style.cssText = 'color: $postTimeColor !important; font-size: ${metaSize}px !important;';
+              t.innerText = meta.postTime;
+              right.appendChild(t);
+            }
+            if ($showFloorBadge && meta.floorText) {
+              var f = document.createElement('span');
+              f.style.cssText = 'font-weight: bold !important; color: $floorColor !important; font-size: ${floorSize}px !important;';
+              f.innerText = meta.floorText;
+              right.appendChild(f);
+            }
+            header.appendChild(right);
+            contentTd.insertBefore(header, contentTd.firstChild);
+
+            contentTd.querySelectorAll('table, .postmessage, .t_msgfont, .t_msgfontfix, .defaultpost').forEach(function(el) {
+              el.style.width = '100%';
+              el.style.maxWidth = '100%';
+              el.style.boxSizing = 'border-box';
+            });
+          });
         }
 
         // 4. 处理顶部导航栏标题
@@ -765,7 +1212,7 @@ class TemplateRenderer {
             max-width: 100% !important;
             min-width: 100% !important;
             margin: 0 !important;
-            padding: ${layoutMode == 'card' ? "8px 10px 14px 10px" : "0"} !important;
+            padding: ${(layoutMode == 'card' || layoutMode == 'magazine') ? "8px 10px 14px 10px" : (layoutMode == 'timeline' ? "10px 12px 16px 12px" : (layoutMode == 'novel' ? "12px 18px 20px 18px" : "0"))} !important;
             box-sizing: border-box !important;
             background: transparent !important;
             height: auto !important;
@@ -914,7 +1361,7 @@ class TemplateRenderer {
             line-height: $postLineHeight !important;
             color: $postTextColor !important;
           }
-          ''' : '''
+          ''' : (layoutMode == 'split' ? '''
           .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
             text-align: left !important;
             width: ${isPreview ? "100%" : "${width}px"} !important;
@@ -1049,7 +1496,6 @@ class TemplateRenderer {
           }
 
           /* 核心修复：UID / 帖子 / 积分 / 注册时间列表 */
-          /* Discuz 原生是 dt(50px float) + dd(80px float) 并带有 margin-left: 20px，导致折行错位与右侧大片空白 */
           .postauthor dl.profile, .postauthor dl.s_clear, .postauthor dl {
             margin: 6px 0 0 0 !important;
             padding: 0 !important;
@@ -1143,7 +1589,135 @@ class TemplateRenderer {
             line-height: $postLineHeight !important;
             color: $postTextColor !important;
           }
-          '''))}
+          ''' : (layoutMode == 'magazine' ? '''
+          .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
+            text-align: left !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            display: block !important;
+            margin: 0 0 ${cardSpacing > 0 ? cardSpacing : 18}px 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .postauthor, td.postauthor { display: none !important; }
+          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line, .postbottom { display: none !important; }
+          .postcontent, td.postcontent {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            padding: 0 !important;
+          }
+          .d2pdf-magazine-header {
+            background: #f8fafc !important;
+            border-bottom: 2px solid #0f172a !important;
+          }
+          .postmessage, .t_msgfont, .t_msgfontfix, .t_msgfont td {
+            font-size: ${fontSize}px !important;
+            line-height: ${postLineHeight > 1.6 ? postLineHeight : 1.75} !important;
+            color: $postTextColor !important;
+            word-break: break-word !important;
+            padding: 12px 16px 16px 16px !important;
+          }
+          ''' : (layoutMode == 'timeline' ? '''
+          #postlist {
+            position: relative !important;
+            padding-left: 12px !important;
+          }
+          #postlist::before {
+            content: "" !important;
+            position: absolute !important;
+            top: 20px !important;
+            bottom: 24px !important;
+            left: 23px !important;
+            width: 2px !important;
+            background: #cbd5e1 !important;
+            z-index: 1 !important;
+          }
+          .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
+            text-align: left !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            display: block !important;
+            margin: 0 0 ${cardSpacing > 0 ? cardSpacing : 14}px 0 !important;
+            padding-left: 36px !important;
+            box-sizing: border-box !important;
+            position: relative !important;
+          }
+          .postauthor, td.postauthor { display: none !important; }
+          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line, .postbottom { display: none !important; }
+          .postcontent, td.postcontent {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .postmessage, .t_msgfont, .t_msgfontfix, .t_msgfont td {
+            font-size: ${fontSize}px !important;
+            line-height: $postLineHeight !important;
+            color: $postTextColor !important;
+            word-break: break-word !important;
+            padding: 8px 12px 12px 12px !important;
+          }
+          ''' : (layoutMode == 'novel' ? '''
+          .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
+            text-align: left !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            display: block !important;
+            margin: 0 0 24px 0 !important;
+            padding: 0 0 16px 0 !important;
+            box-sizing: border-box !important;
+            border-bottom: 1px dashed #d1c7b7 !important;
+          }
+          .postauthor, td.postauthor { display: none !important; }
+          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line, .postbottom { display: none !important; }
+          .postcontent, td.postcontent {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .d2pdf-novel-header {
+            font-family: Georgia, "Noto Serif SC", "Songti SC", SimSun, serif !important;
+          }
+          .postmessage, .t_msgfont, .t_msgfontfix, .t_msgfont td {
+            font-size: ${fontSize}px !important;
+            line-height: 1.85 !important;
+            color: $postTextColor !important;
+            word-break: break-word !important;
+            padding: 12px 18px 18px 18px !important;
+            font-family: Georgia, "Noto Serif SC", "Songti SC", SimSun, serif !important;
+          }
+          ''' : '''
+          /* 自定义/扩展核心架构通用容器规则 */
+          .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
+            text-align: left !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            display: block !important;
+            margin: 0 0 ${cardSpacing}px 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .postauthor, td.postauthor { display: none !important; }
+          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line, .postbottom { display: none !important; }
+          .postcontent, td.postcontent {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .postmessage, .t_msgfont, .t_msgfontfix, .t_msgfont td {
+            font-size: ${fontSize}px !important;
+            line-height: $postLineHeight !important;
+            color: $postTextColor !important;
+            word-break: break-word !important;
+            padding: 8px 12px 12px 12px !important;
+          }
+          '''))))))}
 
           /* 彻底隐藏主贴顶部多余文字与按钮：打印、字体大小、倒序看贴、跳转到，以及主楼内部重复显示的标题 */
           .pagecontrol, .print, a.print, a[href*="action=printable"],
@@ -1171,7 +1745,7 @@ class TemplateRenderer {
             text-indent: 0 !important;
             border: none !important;
             border-bottom: 1px solid #cbd5e1 !important;
-            ${layoutMode == 'card' ? 'border-radius: 8px !important; border: 1px solid #cbd5e1 !important;' : ''}
+            ${(layoutMode == 'card' || layoutMode == 'magazine' || layoutMode == 'timeline') ? 'border-radius: 8px !important; border: 1px solid #cbd5e1 !important;' : ''}
             text-align: left !important;
             box-sizing: border-box !important;
             width: 100% !important;

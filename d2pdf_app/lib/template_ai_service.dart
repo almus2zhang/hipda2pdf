@@ -148,11 +148,18 @@ class TemplateAiGenerator {
 3. 正文与签名：
    - 正文内容: postText
    - 签名档: signature
-4. 排版模式 layoutMode:
-   - "card": 现代卡片上下流式（移动卡片风，楼层独立成卡片）
-   - "split": 经典论坛左右分栏（左侧作者栏，右侧正文栏）
-   - "minimal": 极简纯粹阅读（弱化作者，突出正文文本）
+4. 排版核心模式 layoutMode:
+   系统支持 4 种基础核心架构，并全面支持在此基础上无限扩展新核心架构：
+   【4 种基础核心】：
+   - "card": 现代气泡卡片（移动卡片风，楼层独立成卡片，支持双色交替、卡片边框与页面底色）
+   - "split": 经典左右分栏（左侧作者栏+头像，右侧正文栏）
+   - "minimal": 极简纯享（扁平纯粹阅读，弱化作者，突出正文）
    - "raw": 原汁原味（原汁原味保留论坛经典桌面排版）
+   【扩展新核心架构】（若参考图或需求不属于上述四种基础核心，可直接指定或创建新核心架构）：
+   - "magazine": 杂志画报（通栏顶部大作者横幅、杂志式排版装饰与精美艺术留白，适合图文特刊）
+   - "timeline": 时间轴流（左侧垂直贯穿时间主轴，节点楼层徽章，右侧内容流式递进，适合折腾日记、时序记录）
+   - "novel": 典雅书卷（无干扰书籍装帧风格，章节式楼层标号，典雅书籍阅读质感）
+   - 或其他自定英文标识（如 "retro", "grid" 等），并在 customCss 中针对 .d2pdf-custom-header, .d2pdf-author-card, .postmessage 等补充专属 CSS 规则。
 
 请分析用户的需求（文本描述或排版参考图），输出一个严格合法的 JSON 对象，不包含任何 Markdown 格式包裹（不要输出 ```json ... ```）：
 {
@@ -293,18 +300,26 @@ class TemplateAiGenerator {
     parsed['id'] = 'custom_${DateTime.now().millisecondsSinceEpoch}';
     parsed['isBuiltin'] = false;
 
-    // 校验与规范化 layoutMode，确保必须属于系统支持的四种合法架构之一 (card, split, minimal, raw)
+    // 校验与规范化 layoutMode：支持四大基础核心与扩展新核心架构 (magazine, timeline, novel, 或合法自定义核心)
     final rawMode = parsed['layoutMode']?.toString().toLowerCase().trim() ?? 'card';
-    if (rawMode != 'card' && rawMode != 'split' && rawMode != 'minimal' && rawMode != 'raw') {
-      if (rawMode.contains('split') || rawMode.contains('column') || rawMode.contains('左右') || rawMode.contains('分栏')) {
-        parsed['layoutMode'] = 'split';
-      } else if (rawMode.contains('minimal') || rawMode.contains('clean') || rawMode.contains('极简') || rawMode.contains('纯享')) {
-        parsed['layoutMode'] = 'minimal';
-      } else if (rawMode.contains('raw') || rawMode.contains('original') || rawMode.contains('还原') || rawMode.contains('原汁原味')) {
-        parsed['layoutMode'] = 'raw';
-      } else {
-        parsed['layoutMode'] = 'card';
-      }
+    if (rawMode.contains('split') || rawMode.contains('column') || rawMode.contains('左右') || rawMode.contains('分栏')) {
+      parsed['layoutMode'] = 'split';
+    } else if (rawMode.contains('minimal') || rawMode.contains('clean') || rawMode.contains('极简') || rawMode.contains('纯享')) {
+      parsed['layoutMode'] = 'minimal';
+    } else if (rawMode.contains('raw') || rawMode.contains('original') || rawMode.contains('还原') || rawMode.contains('原汁原味')) {
+      parsed['layoutMode'] = 'raw';
+    } else if (rawMode.contains('magazine') || rawMode.contains('杂志') || rawMode.contains('画报')) {
+      parsed['layoutMode'] = 'magazine';
+    } else if (rawMode.contains('timeline') || rawMode.contains('时间轴') || rawMode.contains('时序')) {
+      parsed['layoutMode'] = 'timeline';
+    } else if (rawMode.contains('novel') || rawMode.contains('书卷') || rawMode.contains('小说') || rawMode.contains('书籍')) {
+      parsed['layoutMode'] = 'novel';
+    } else if (rawMode.contains('card') || rawMode.contains('bubble') || rawMode.contains('卡片') || rawMode.contains('气泡')) {
+      parsed['layoutMode'] = 'card';
+    } else {
+      // 保留合法自定义核心标识符
+      final sanitized = rawMode.replaceAll(RegExp(r'[^a-zA-Z0-9_\-]'), '');
+      parsed['layoutMode'] = sanitized.isNotEmpty ? sanitized : 'card';
     }
 
     return LayoutTemplate.fromJson(parsed);

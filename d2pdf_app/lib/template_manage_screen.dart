@@ -425,7 +425,7 @@ class _TemplateManageScreenState extends State<TemplateManageScreen> {
                                     const SizedBox(width: 6),
                                     _buildBadge(t.showOtherInfo ? '全用户信息' : '仅用户名'),
                                     const SizedBox(width: 6),
-                                    _buildBadge(t.layoutMode == 'card' ? '卡片流' : (t.layoutMode == 'split' ? '左右分栏' : (t.layoutMode == 'raw' ? '原汁原味' : '极简阅读'))),
+                                    _buildBadge(_getLayoutModeBadgeText(t.layoutMode)),
                                     const Spacer(),
                                     IconButton(
                                       icon: const Icon(Icons.edit, size: 18),
@@ -498,6 +498,27 @@ class _TemplateManageScreenState extends State<TemplateManageScreen> {
         ),
       ),
     );
+  }
+
+  static String _getLayoutModeBadgeText(String mode) {
+    switch (mode) {
+      case 'card':
+        return '现代气泡';
+      case 'split':
+        return '左右分栏';
+      case 'minimal':
+        return '极简纯享';
+      case 'raw':
+        return '原汁原味';
+      case 'magazine':
+        return '杂志画报';
+      case 'timeline':
+        return '时间轴流';
+      case 'novel':
+        return '典雅书卷';
+      default:
+        return '核心: $mode';
+    }
   }
 
   Widget _buildBadge(String text) {
@@ -834,6 +855,101 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     );
   }
 
+  void _showAddCustomCoreDialog() {
+    final controller = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('添加新排版核心架构', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '在原有 4 种基础核心与拓展核心上直接追加新架构标识（如 grid, retro, compact 等）。系统将自动注入结构化 DOM，您可直接微调或通过下方自定义 CSS 精修。',
+              style: TextStyle(fontSize: 12, color: Colors.black87),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: '新核心架构标识',
+                hintText: '如: retro 或 grid',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(
+            onPressed: () {
+              final val = controller.text.trim();
+              if (val.isNotEmpty) {
+                Navigator.pop(ctx);
+                setState(() {
+                  _current.layoutMode = val;
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('已成功切换并追加新核心架构: $val')),
+                );
+              }
+            },
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFF192D50)),
+            child: const Text('确定追加'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildLayoutModeChips() {
+    final List<Map<String, dynamic>> baseCores = [
+      {'id': 'card', 'label': '现代气泡卡片', 'icon': Icons.chat_bubble_outline},
+      {'id': 'split', 'label': '经典左右分栏', 'icon': Icons.view_column_outlined},
+      {'id': 'minimal', 'label': '极简纯享', 'icon': Icons.format_align_left},
+      {'id': 'raw', 'label': '原汁原味', 'icon': Icons.history_edu},
+      {'id': 'magazine', 'label': '杂志画报', 'icon': Icons.auto_stories},
+      {'id': 'timeline', 'label': '时间轴流', 'icon': Icons.timeline},
+      {'id': 'novel', 'label': '典雅书卷', 'icon': Icons.menu_book},
+    ];
+
+    final hasCurrent = baseCores.any((c) => c['id'] == _current.layoutMode);
+    final allCores = List<Map<String, dynamic>>.from(baseCores);
+    if (!hasCurrent) {
+      allCores.add({
+        'id': _current.layoutMode,
+        'label': '新核心: ${_current.layoutMode}',
+        'icon': Icons.dashboard_customize,
+      });
+    }
+
+    return allCores.map((c) {
+      final String id = c['id'] as String;
+      final String label = c['label'] as String;
+      final IconData icon = c['icon'] as IconData;
+      final bool isSel = _current.layoutMode == id;
+
+      return ChoiceChip(
+        avatar: Icon(icon, size: 16, color: isSel ? Colors.white : const Color(0xFF192D50)),
+        label: Text(label),
+        selected: isSel,
+        selectedColor: const Color(0xFF192D50),
+        labelStyle: TextStyle(
+          color: isSel ? Colors.white : Colors.black87,
+          fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+          fontSize: 12,
+        ),
+        onSelected: (val) {
+          if (val) {
+            setState(() => _current.layoutMode = id);
+          }
+        },
+      );
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -964,24 +1080,46 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                const Text('排版架构与模式：', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                const SizedBox(height: 8),
-                SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'card', label: Text('现代气泡卡片')),
-                    ButtonSegment(value: 'split', label: Text('经典左右分栏')),
-                    ButtonSegment(value: 'minimal', label: Text('极简纯享')),
-                    ButtonSegment(value: 'raw', label: Text('原汁原味')),
+                Row(
+                  children: [
+                    const Text('排版架构与模式：', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    const Spacer(),
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      onPressed: _showAddCustomCoreDialog,
+                      icon: const Icon(Icons.add_circle_outline, size: 16),
+                      label: const Text('添加新核心', style: TextStyle(fontSize: 12)),
+                    ),
                   ],
-                  selected: {_current.layoutMode},
-                  onSelectionChanged: (val) {
-                    setState(() => _current.layoutMode = val.first);
-                  },
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _buildLayoutModeChips(),
                 ),
 
-                if (_current.layoutMode == 'card') ...[
+                if (_current.layoutMode == 'card' ||
+                    _current.layoutMode == 'magazine' ||
+                    _current.layoutMode == 'timeline' ||
+                    _current.layoutMode == 'novel' ||
+                    (_current.layoutMode != 'split' && _current.layoutMode != 'raw' && _current.layoutMode != 'minimal')) ...[
                   const Divider(height: 24),
-                  const Text('气泡卡片样式与背景设置：', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  Text(
+                    _current.layoutMode == 'card'
+                        ? '气泡卡片样式与背景设置：'
+                        : (_current.layoutMode == 'magazine'
+                            ? '画报卡片样式与背景设置：'
+                            : (_current.layoutMode == 'timeline'
+                                ? '时间轴卡片与背景设置：'
+                                : (_current.layoutMode == 'novel'
+                                    ? '书卷装帧与版面底色设置：'
+                                    : '核心卡片样式与背景设置：'))),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
                   const SizedBox(height: 4),
 
                   // 气泡主颜色
@@ -1634,8 +1772,16 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       card = _buildMinimalMock();
     } else if (_current.layoutMode == 'raw') {
       card = _buildRawMock();
-    } else {
+    } else if (_current.layoutMode == 'magazine') {
+      card = _buildMagazineMock();
+    } else if (_current.layoutMode == 'timeline') {
+      card = _buildTimelineMock();
+    } else if (_current.layoutMode == 'novel') {
+      card = _buildNovelMock();
+    } else if (_current.layoutMode == 'card') {
       card = _buildBubbleCardMock();
+    } else {
+      card = _buildCustomCoreMock();
     }
 
     return Column(
@@ -2374,6 +2520,313 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildMagazineMock() {
+    final curAvatar = _current.getAvatarSizeForWidth(_editingWidth).toDouble().clamp(20.0, 56.0);
+    final curRadius = _current.getBorderRadiusForWidth(_editingWidth).toDouble();
+    final borderColor = Color(int.parse(_current.cardBorderColor.replaceFirst('#', '0xFF')));
+    final cardBg = Color(int.parse(_current.cardBackgroundColor.replaceFirst('#', '0xFF')));
+
+    final bool showAvatar = _current.getShowAvatarForWidth(_editingWidth);
+    final bool showUsername = _current.getShowUsernameForWidth(_editingWidth);
+    final bool showOtherInfo = _current.getShowOtherInfoForWidth(_editingWidth);
+    final bool showFloorBadge = _current.getShowFloorBadgeForWidth(_editingWidth);
+    final bool showPostTime = _current.getShowPostTimeForWidth(_editingWidth);
+    final bool showSignature = _current.getShowSignatureForWidth(_editingWidth);
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(curRadius > 0 ? curRadius : 6),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: const Offset(0, 2)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 杂志画报顶部横幅 (Editorial Banner)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF8FAFC),
+              border: Border(bottom: BorderSide(color: Color(0xFF0F172A), width: 2)),
+            ),
+            child: Row(
+              children: [
+                if (showAvatar)
+                  Container(
+                    width: curAvatar,
+                    height: curAvatar,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A),
+                      shape: _current.avatarRound ? BoxShape.circle : BoxShape.rectangle,
+                      borderRadius: _current.avatarRound ? null : BorderRadius.circular(4),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text('M', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
+                if (showAvatar) const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (showUsername)
+                        Text(
+                          'MAGAZINE FEATURE',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                            color: Color(int.parse(_current.usernameColor.replaceFirst('#', '0xFF'))),
+                          ),
+                        ),
+                      if (showOtherInfo)
+                        Text(
+                          '特刊主编 · 深度专栏',
+                          style: TextStyle(fontSize: 10, color: Color(int.parse(_current.otherInfoColor.replaceFirst('#', '0xFF')))),
+                        ),
+                    ],
+                  ),
+                ),
+                if (showPostTime)
+                  Text(
+                    'OCT 2026',
+                    style: TextStyle(fontSize: 10, color: Color(int.parse(_current.postTimeColor.replaceFirst('#', '0xFF')))),
+                  ),
+                if (showPostTime && showFloorBadge) const SizedBox(width: 8),
+                if (showFloorBadge)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: const Text(
+                      '1# 楼主',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: Text(
+              '这是杂志画报排版架构：以全宽精制作者条为视觉重心，采用杂志式粗黑分割线与高定版心比例，适合图文集锦与精华帖特刊导出。',
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.75,
+                color: Color(int.parse(_current.postTextColor.replaceFirst('#', '0xFF'))),
+              ),
+            ),
+          ),
+          if (showSignature)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(border: Border(top: BorderSide(color: Colors.grey.shade200))),
+              child: const Text('—— 杂志专栏个性寄语', style: TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimelineMock() {
+    final curAvatar = _current.getAvatarSizeForWidth(_editingWidth).toDouble().clamp(20.0, 48.0);
+    final borderColor = Color(int.parse(_current.cardBorderColor.replaceFirst('#', '0xFF')));
+    final cardBg = Color(int.parse(_current.cardBackgroundColor.replaceFirst('#', '0xFF')));
+
+    final bool showAvatar = _current.getShowAvatarForWidth(_editingWidth);
+    final bool showUsername = _current.getShowUsernameForWidth(_editingWidth);
+    final bool showFloorBadge = _current.getShowFloorBadgeForWidth(_editingWidth);
+    final bool showPostTime = _current.getShowPostTimeForWidth(_editingWidth);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.only(left: 8),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // 时间轴贯穿竖线
+          Positioned(
+            left: 12,
+            top: 10,
+            bottom: 0,
+            child: Container(width: 2, color: const Color(0xFFCBD5E1)),
+          ),
+          // 楼层卡片
+          Padding(
+            padding: const EdgeInsets.only(left: 32, bottom: 8),
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: borderColor),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 1)),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF8FAFC),
+                      border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+                    ),
+                    child: Row(
+                      children: [
+                        if (showAvatar)
+                          Container(
+                            width: curAvatar,
+                            height: curAvatar,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF192D50),
+                              shape: _current.avatarRound ? BoxShape.circle : BoxShape.rectangle,
+                              borderRadius: _current.avatarRound ? null : BorderRadius.circular(4),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Text('T', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
+                          ),
+                        if (showAvatar) const SizedBox(width: 6),
+                        if (showUsername)
+                          Text('记录者', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(int.parse(_current.usernameColor.replaceFirst('#', '0xFF'))))),
+                        const Spacer(),
+                        if (showPostTime)
+                          Text('09:30', style: TextStyle(fontSize: 10, color: Color(int.parse(_current.postTimeColor.replaceFirst('#', '0xFF'))))),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Text(
+                      '这是时间轴流排版架构：左侧以竖向时序轴线贯穿各楼层，各楼序号作为时间轴圆点徽章，右侧内容随时间推移向下推进。',
+                      style: TextStyle(fontSize: 12, height: 1.5, color: Color(int.parse(_current.postTextColor.replaceFirst('#', '0xFF')))),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          // 时间轴圆点节点
+          Positioned(
+            left: 2,
+            top: 10,
+            child: Container(
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                color: Color(int.parse(_current.floorColor.replaceFirst('#', '0xFF'))),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 2),
+                ],
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                showFloorBadge ? '1' : '•',
+                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNovelMock() {
+    final bool showUsername = _current.getShowUsernameForWidth(_editingWidth);
+    final bool showFloorBadge = _current.getShowFloorBadgeForWidth(_editingWidth);
+    final bool showPostTime = _current.getShowPostTimeForWidth(_editingWidth);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAF8F5),
+        border: Border(bottom: BorderSide(color: Colors.brown.shade200, width: 1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          if (showFloorBadge)
+            const Text(
+              '— 第一章 · 楼主 —',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF44403C), letterSpacing: 2),
+            ),
+          if (showUsername || showPostTime) ...[
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (showUsername)
+                  const Text('著者: 墨客', style: TextStyle(fontSize: 10, color: Color(0xFF78716C))),
+                if (showUsername && showPostTime) const SizedBox(width: 8),
+                if (showPostTime)
+                  const Text('2026-10-14', style: TextStyle(fontSize: 10, color: Color(0xFF78716C))),
+              ],
+            ),
+          ],
+          const SizedBox(height: 10),
+          Text(
+            '这是典雅书卷排版架构：去除干扰读者的非文本构件，以章节名形式呈现楼层，搭配柔和书籍底色与典雅版心，提供纯粹沉浸的纸质书籍阅读质感。',
+            textAlign: TextAlign.left,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.85,
+              color: Color(int.parse(_current.postTextColor.replaceFirst('#', '0xFF'))),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCustomCoreMock() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFF192D50), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF192D50),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text('自定义核心: ${_current.layoutMode}', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
+              const Spacer(),
+              Text('通用结构化容器', style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '此排版属于新扩展的核心架构 (${_current.layoutMode})。系统已自动生成包含头像、作者名、楼层、时间的结构化 DOM 容器。您可在下方自定义 CSS 框中添加针对此模式的专属样式。',
+            style: TextStyle(
+              fontSize: 12,
+              height: _current.postLineHeight,
+              color: Color(int.parse(_current.postTextColor.replaceFirst('#', '0xFF'))),
+            ),
+          ),
+        ],
       ),
     );
   }
