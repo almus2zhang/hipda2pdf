@@ -17,7 +17,6 @@ class TemplateRenderer {
 
     // 解析用户信息三类配置
     final bool showAvatar = template.showAvatar;
-    final int avatarSize = template.avatarSize;
     final bool avatarRound = template.avatarRound;
     final String avatarBorder = template.avatarBorderColor;
 
@@ -41,8 +40,14 @@ class TemplateRenderer {
 
     final String layoutMode = template.layoutMode; // 'card', 'split', 'minimal'
     final String cardBorderColor = template.cardBorderColor;
+    final int cardBorderWidth = template.cardBorderWidth;
+    final int cardBorderRadius = template.getBorderRadiusForWidth(width);
     final bool showFloorDivider = template.showFloorDivider;
     final String cardBgColor = template.cardBackgroundColor;
+    final bool enableAlternateBubbleColor = template.enableAlternateBubbleColor;
+    final String alternateBubbleColor = template.alternateBubbleColor;
+    final String pageBgColor = (layoutMode == 'card') ? template.pageBackgroundColor : '#ffffff';
+    final int effectiveAvatarSize = template.getAvatarSizeForWidth(width);
     final String customCss = template.customCss;
 
     return """
@@ -85,7 +90,7 @@ class TemplateRenderer {
           if (t === '发表回复' || t === '发表新帖' || t === '发新帖' || t === '发帖' || t === '回复' ||
               t === '返回列表' || t.indexOf('返回列表') !== -1) {
             var container = el.closest('.pages_btns') || el.closest('.postbtn') || el.closest('.forumcontrol') || el.closest('#postlist_act') || el;
-            container.style.display = 'none';
+            if (container) container.style.display = 'none';
           }
         });
 
@@ -107,9 +112,9 @@ class TemplateRenderer {
           tables = document.querySelectorAll('table.viewthread, #postlist > table');
         }
 
-        if (mode === 'card' || mode === 'minimal') {
-          // ====== 现代卡片模式 / 极简阅读模式：重构成单列卡片流 ======
-          tables.forEach(function(table) {
+        if (mode === 'card') {
+          // ====== 现代气泡卡片模式：每楼独立气泡卡片，全宽填满，支持双色交替与边框底色 ======
+          tables.forEach(function(table, idx) {
             var authorTd = table.querySelector('.postauthor');
             var contentTd = table.querySelector('.postcontent');
             if (!contentTd) return;
@@ -176,16 +181,28 @@ class TemplateRenderer {
             // 隐藏原有左侧栏
             if (authorTd) authorTd.style.display = 'none';
 
+            // 气泡交替双色判断
+            var isOddFloor = (idx % 2 === 1);
+            var thisBubbleColor = ($enableAlternateBubbleColor && isOddFloor) ? '$alternateBubbleColor' : '$cardBgColor';
+
             table.style.width = '100%';
+            table.style.maxWidth = '100%';
             table.style.display = 'block';
-            table.style.margin = '0 0 6px 0';
-            table.style.border = 'none';
-            table.style.background = '$cardBgColor';
+            table.style.margin = '0 0 10px 0';
+            table.style.border = '${cardBorderWidth}px solid $cardBorderColor';
+            table.style.borderRadius = '${cardBorderRadius}px';
+            table.style.background = thisBubbleColor;
+            table.style.backgroundColor = thisBubbleColor;
+            table.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.05)';
+            table.style.boxSizing = 'border-box';
+            table.style.overflow = 'hidden';
 
             contentTd.style.display = 'block';
             contentTd.style.width = '100%';
+            contentTd.style.maxWidth = '100%';
             contentTd.style.padding = '0';
             contentTd.style.boxSizing = 'border-box';
+            contentTd.style.background = 'transparent';
 
             var oldHeader = contentTd.querySelector('.d2pdf-custom-header');
             if (oldHeader) oldHeader.remove();
@@ -193,16 +210,16 @@ class TemplateRenderer {
             var header = document.createElement('div');
             header.className = 'd2pdf-custom-header';
             header.style.cssText = 'display: flex !important; align-items: center !important; justify-content: space-between !important; ' +
-              'padding: 4px 10px 2px 10px !important; width: 100% !important; box-sizing: border-box !important; ' +
-              'border-top: ${showFloorDivider ? "1px solid $cardBorderColor" : "none"} !important; ' +
-              'background: $cardBgColor !important;';
+              'padding: 6px 12px 4px 12px !important; width: 100% !important; box-sizing: border-box !important; ' +
+              'background: transparent !important; ' +
+              'border-bottom: ${showFloorDivider ? "1px solid rgba(0,0,0,0.06)" : "none"} !important;';
 
             // 左侧：头像 + 用户名 + 剩余其他信息（紧凑缩窄）
             var left = document.createElement('div');
             left.className = 'd2pdf-header-left';
             left.style.cssText = 'display: flex !important; align-items: center !important; flex: 1 !important; min-width: 0 !important; gap: 6px !important;';
 
-            var effectiveAvatarSize = ${width <= 600 && avatarSize > 32 ? 30 : avatarSize};
+            var effectiveAvatarSize = $effectiveAvatarSize;
 
             if ($showAvatar) {
               if (avatarSrc) {
@@ -268,6 +285,94 @@ class TemplateRenderer {
               right.appendChild(floorSpan);
             }
 
+            header.appendChild(right);
+            contentTd.insertBefore(header, contentTd.firstChild);
+          });
+
+        } else if (mode === 'minimal') {
+          // ====== 极简纯享模式：保持现在的样式，纯净阅读，全宽填满 ======
+          tables.forEach(function(table) {
+            var authorTd = table.querySelector('.postauthor');
+            var contentTd = table.querySelector('.postcontent');
+            if (!contentTd) return;
+
+            var username = '';
+            if (authorTd) {
+              var userLink = authorTd.querySelector('.postinfo a') || authorTd.querySelector('cite a') || authorTd.querySelector('a[href*="space.php"]');
+              if (userLink) username = userLink.innerText.trim();
+            }
+            if (!username && contentTd) {
+              var cl = contentTd.querySelector('a[href*="space.php"]');
+              if (cl) username = cl.innerText.trim();
+            }
+
+            var postInfo = contentTd.querySelector('.postinfo');
+            var postTime = '';
+            var floorText = '';
+            if (postInfo) {
+              var strongEl = postInfo.querySelector('strong');
+              if (strongEl) floorText = strongEl.innerText.replace(/\\s+/g, ' ').trim();
+              var emList = postInfo.querySelectorAll('em');
+              emList.forEach(function(em) {
+                var t = em.innerText.trim();
+                if (t.indexOf('发表于') !== -1 || /\\d{4}-\\d{1,2}-\\d{1,2}/.test(t)) postTime = t;
+              });
+              if (!postTime) {
+                var m = postInfo.innerText.match(/发表于\\s*[\\d\\-:\\s]+/);
+                if (m) postTime = m[0].trim();
+              }
+              postInfo.style.display = 'none';
+            }
+
+            if (authorTd) authorTd.style.display = 'none';
+
+            table.style.width = '100%';
+            table.style.maxWidth = '100%';
+            table.style.display = 'block';
+            table.style.margin = '0';
+            table.style.border = 'none';
+            table.style.borderBottom = '1px solid #e5e7eb';
+            table.style.background = '#ffffff';
+            table.style.boxSizing = 'border-box';
+
+            contentTd.style.display = 'block';
+            contentTd.style.width = '100%';
+            contentTd.style.maxWidth = '100%';
+            contentTd.style.padding = '0';
+            contentTd.style.boxSizing = 'border-box';
+
+            var oldHeader = contentTd.querySelector('.d2pdf-custom-header');
+            if (oldHeader) oldHeader.remove();
+
+            var header = document.createElement('div');
+            header.className = 'd2pdf-custom-header';
+            header.style.cssText = 'display: flex !important; align-items: center !important; justify-content: space-between !important; ' +
+              'padding: 6px 12px 2px 12px !important; width: 100% !important; box-sizing: border-box !important; background: #ffffff !important;';
+
+            var left = document.createElement('div');
+            left.style.cssText = 'display: flex !important; align-items: center !important; gap: 8px !important;';
+            if ($showUsername && username) {
+              var name = document.createElement('span');
+              name.style.cssText = 'font-weight: bold !important; font-size: ${uSize}px !important; color: $uColor !important;';
+              name.innerText = username;
+              left.appendChild(name);
+            }
+            header.appendChild(left);
+
+            var right = document.createElement('div');
+            right.style.cssText = 'display: flex !important; align-items: center !important; gap: 8px !important;';
+            if ($showPostTime && postTime) {
+              var timeSpan = document.createElement('span');
+              timeSpan.style.cssText = 'color: $postTimeColor !important; font-size: ${metaSize}px !important;';
+              timeSpan.innerText = postTime;
+              right.appendChild(timeSpan);
+            }
+            if ($showFloorBadge && floorText) {
+              var floorSpan = document.createElement('span');
+              floorSpan.style.cssText = 'color: $floorColor !important; font-size: ${floorSize}px !important; font-weight: bold !important;';
+              floorSpan.innerText = floorText;
+              right.appendChild(floorSpan);
+            }
             header.appendChild(right);
             contentTd.insertBefore(header, contentTd.firstChild);
           });
@@ -371,38 +476,60 @@ class TemplateRenderer {
 
         styleEl.innerHTML = `
           html, body {
-            background: #ffffff !important;
-            background-color: #ffffff !important;
+            background: $pageBgColor !important;
+            background-color: $pageBgColor !important;
             background-image: none !important;
             margin: 0 !important;
             padding: 0 !important;
             text-align: left !important;
             width: ${isPreview ? "100%" : "${width}px"} !important;
+            max-width: ${isPreview ? "100%" : "${width}px"} !important;
             overflow-x: hidden !important;
           }
-          #wrap, #postlist {
+          #wrap, .wrap, .main, .content, #postlist {
             text-align: left !important;
-            width: ${isPreview ? "100%" : "${width}px"} !important;
-            max-width: ${isPreview ? "100%" : "${width}px"} !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
             margin: 0 !important;
-            padding: 0 !important;
+            padding: ${layoutMode == 'card' ? "8px 10px 14px 10px" : "0"} !important;
             box-sizing: border-box !important;
-            background: #ffffff !important;
+            background: transparent !important;
           }
 
-          ${layoutMode == 'card' || layoutMode == 'minimal' ? '''
+          ${layoutMode == 'card' ? '''
           .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
             text-align: left !important;
             width: 100% !important;
             max-width: 100% !important;
+            min-width: 100% !important;
+            margin: 0 0 10px 0 !important;
+            padding: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .postmessage, .t_msgfont, .t_msgfontfix {
+            padding: 8px 12px 12px 12px !important;
+            box-sizing: border-box !important;
+            background: transparent !important;
+            font-size: ${fontSize}px !important;
+            line-height: $postLineHeight !important;
+            color: $postTextColor !important;
+          }
+          ''' : (layoutMode == 'minimal' ? '''
+          .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
+            text-align: left !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
             border: none !important;
+            border-bottom: 1px solid #e5e7eb !important;
             box-sizing: border-box !important;
             background: #ffffff !important;
           }
           .postmessage, .t_msgfont, .t_msgfontfix {
-            padding: 6px 10px 10px 10px !important;
+            padding: 8px 12px 12px 12px !important;
             box-sizing: border-box !important;
             font-size: ${fontSize}px !important;
             line-height: $postLineHeight !important;
@@ -450,7 +577,7 @@ class TemplateRenderer {
           .postauthor cite, .postauthor cite a {
             font-size: ${uSize}px !important;
           }
-          '''}
+          ''')}
 
           table, tbody, tr, td, .postcontent, p, div, span, h1, h2, h3, h4 {
             text-align: left !important;

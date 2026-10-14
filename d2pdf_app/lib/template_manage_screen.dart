@@ -612,6 +612,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   late TextEditingController _descController;
   late TextEditingController _cssController;
 
+  late int _editingWidth;
+
   @override
   void initState() {
     super.initState();
@@ -621,6 +623,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       _current.name = '${_current.name} (副本)';
       _current.isBuiltin = false;
     }
+    _editingWidth = _current.defaultWidth;
     _nameController = TextEditingController(text: _current.name);
     _descController = TextEditingController(text: _current.description);
     _cssController = TextEditingController(text: _current.customCss);
@@ -628,16 +631,23 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
   void _showColorPickerSheet(String title, String currentColor, ValueChanged<String> onColorSelected) {
     final colors = [
+      {'name': '纯白', 'hex': '#ffffff'},
+      {'name': '淡蓝气泡', 'hex': '#f0f7ff'},
+      {'name': '淡青气泡', 'hex': '#f0fdf4'},
+      {'name': '淡紫气泡', 'hex': '#faf5ff'},
+      {'name': '浅米气泡', 'hex': '#fefce8'},
+      {'name': '极淡灰', 'hex': '#f8fafc'},
+      {'name': '页面底灰', 'hex': '#f1f5f9'},
+      {'name': '边框浅灰', 'hex': '#e2e8f0'},
+      {'name': '边框中灰', 'hex': '#cbd5e1'},
+      {'name': '经典蓝', 'hex': '#192D50'},
+      {'name': '天蓝', 'hex': '#0369a1'},
       {'name': '黑色', 'hex': '#111827'},
       {'name': '深灰', 'hex': '#374151'},
       {'name': '中灰', 'hex': '#6b7280'},
       {'name': '浅灰', 'hex': '#9ca3af'},
-      {'name': '经典蓝', 'hex': '#192D50'},
-      {'name': '天蓝', 'hex': '#0369a1'},
       {'name': '红/棕', 'hex': '#b91c1c'},
       {'name': '墨绿', 'hex': '#047857'},
-      {'name': '边框浅灰', 'hex': '#e5e7eb'},
-      {'name': '纯白', 'hex': '#ffffff'},
     ];
 
     showModalBottomSheet(
@@ -714,6 +724,11 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
             ),
             const SizedBox(height: 16),
 
+            // 宽度设定与微调条
+            _buildWidthBar(),
+
+            const SizedBox(height: 16),
+
             // 所见即所得卡片模拟预览 (点击文字直接修改)
             const Text(
               '💡 交互式预览（点击下方各个元素直接修改颜色/大小/显隐）：',
@@ -728,7 +743,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
             const SizedBox(height: 8),
             SegmentedButton<String>(
               segments: const [
-                ButtonSegment(value: 'card', label: Text('现代卡片流')),
+                ButtonSegment(value: 'card', label: Text('现代气泡卡片')),
                 ButtonSegment(value: 'split', label: Text('经典左右分栏')),
                 ButtonSegment(value: 'minimal', label: Text('极简纯享')),
               ],
@@ -737,6 +752,130 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                 setState(() => _current.layoutMode = val.first);
               },
             ),
+
+            if (_current.layoutMode == 'card') ...[
+              const Divider(height: 24),
+              const Text('气泡卡片样式与背景设置：', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              const SizedBox(height: 4),
+
+              // 气泡主颜色
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: Color(int.parse(_current.cardBackgroundColor.replaceFirst('#', '0xFF'))),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.grey.shade400),
+                  ),
+                ),
+                title: const Text('气泡主颜色 (单数楼层)'),
+                subtitle: Text(_current.cardBackgroundColor),
+                trailing: const Icon(Icons.color_lens, size: 20),
+                onTap: () => _showColorPickerSheet(
+                  '气泡主颜色',
+                  _current.cardBackgroundColor,
+                  (c) => setState(() => _current.cardBackgroundColor = c),
+                ),
+              ),
+
+              // 交替双色开关
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('开启气泡交替双色'),
+                subtitle: const Text('偶数楼层显示交替副颜色，增强阅读层次'),
+                value: _current.enableAlternateBubbleColor,
+                onChanged: (val) => setState(() => _current.enableAlternateBubbleColor = val),
+              ),
+
+              // 气泡副颜色
+              if (_current.enableAlternateBubbleColor)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: Color(int.parse(_current.alternateBubbleColor.replaceFirst('#', '0xFF'))),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: Colors.grey.shade400),
+                    ),
+                  ),
+                  title: const Text('气泡交替副颜色 (双数楼层)'),
+                  subtitle: Text(_current.alternateBubbleColor),
+                  trailing: const Icon(Icons.color_lens, size: 20),
+                  onTap: () => _showColorPickerSheet(
+                    '气泡交替副颜色',
+                    _current.alternateBubbleColor,
+                    (c) => setState(() => _current.alternateBubbleColor = c),
+                  ),
+                ),
+
+              // 页面底色背景
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: Color(int.parse(_current.pageBackgroundColor.replaceFirst('#', '0xFF'))),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.grey.shade400),
+                  ),
+                ),
+                title: const Text('页面背景底色'),
+                subtitle: Text(_current.pageBackgroundColor),
+                trailing: const Icon(Icons.color_lens, size: 20),
+                onTap: () => _showColorPickerSheet(
+                  '页面背景底色',
+                  _current.pageBackgroundColor,
+                  (c) => setState(() => _current.pageBackgroundColor = c),
+                ),
+              ),
+
+              // 气泡边框粗细与颜色
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: Color(int.parse(_current.cardBorderColor.replaceFirst('#', '0xFF'))),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.grey.shade400),
+                  ),
+                ),
+                title: const Text('气泡边框颜色'),
+                subtitle: Text(_current.cardBorderColor),
+                trailing: const Icon(Icons.color_lens, size: 20),
+                onTap: () => _showColorPickerSheet(
+                  '气泡边框颜色',
+                  _current.cardBorderColor,
+                  (c) => setState(() => _current.cardBorderColor = c),
+                ),
+              ),
+
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: [
+                    const Text('边框大小: '),
+                    const SizedBox(width: 8),
+                    SegmentedButton<int>(
+                      segments: const [
+                        ButtonSegment(value: 0, label: Text('无边框')),
+                        ButtonSegment(value: 1, label: Text('1px')),
+                        ButtonSegment(value: 2, label: Text('2px')),
+                        ButtonSegment(value: 3, label: Text('3px')),
+                      ],
+                      selected: {_current.cardBorderWidth},
+                      onSelectionChanged: (val) => setState(() => _current.cardBorderWidth = val.first),
+                    ),
+                  ],
+                ),
+              ),
+            ],
 
             const SizedBox(height: 16),
             const Text('用户信息三要素设置：', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
@@ -802,7 +941,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
               onChanged: (val) => setState(() => _current.showSignature = val),
             ),
             SwitchListTile(
-              title: const Text('楼层间分割线'),
+              title: const Text('楼层作者下方分割线'),
               value: _current.showFloorDivider,
               onChanged: (val) => setState(() => _current.showFloorDivider = val),
             ),
@@ -823,204 +962,430 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     );
   }
 
-  Widget _buildInteractiveMockCard() {
-    if (_current.layoutMode == 'split') {
-      return Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: Colors.grey.shade300),
-          borderRadius: BorderRadius.circular(4),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // 左侧：经典论坛作者侧边栏
-              Container(
-                width: 130,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.blueGrey.shade50.withOpacity(0.5),
-                  border: Border(
-                    right: BorderSide(color: Colors.grey.shade300),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 用户名
-                    if (_current.showUsername)
-                      InkWell(
-                        onTap: () => _showColorPickerSheet(
-                          '用户名',
-                          _current.usernameColor,
-                          (c) => setState(() => _current.usernameColor = c),
-                        ),
-                        child: Text(
-                          'HelloEarth',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: _current.usernameBold ? FontWeight.bold : FontWeight.normal,
-                            color: Color(int.parse(_current.usernameColor.replaceFirst('#', '0xFF'))),
-                          ),
-                        ),
-                      ),
-                    const SizedBox(height: 8),
-                    // 头像
-                    if (_current.showAvatar)
-                      InkWell(
-                        onTap: () {
-                          setState(() => _current.avatarRound = !_current.avatarRound);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('已切换头像形态：${_current.avatarRound ? "圆形" : "方形"}')),
-                          );
-                        },
-                        child: Container(
-                          width: _current.avatarSize.toDouble().clamp(36.0, 56.0),
-                          height: _current.avatarSize.toDouble().clamp(36.0, 56.0),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF192D50),
-                            shape: _current.avatarRound ? BoxShape.circle : BoxShape.rectangle,
-                            borderRadius: _current.avatarRound ? null : BorderRadius.circular(4),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          alignment: Alignment.center,
-                          child: const Text('H', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                        ),
-                      ),
-                    const SizedBox(height: 8),
-                    // 剩余其他信息（星级、UID、帖子、积分）
-                    if (_current.showOtherInfo)
-                      InkWell(
-                        onTap: () => _showColorPickerSheet(
-                          '其他信息',
-                          _current.otherInfoColor,
-                          (c) => setState(() => _current.otherInfoColor = c),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '金牌会员 ☀️☀️🌙',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Color(int.parse(_current.otherInfoColor.replaceFirst('#', '0xFF'))),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'UID: 38294\n帖子: 154\n积分: 890\n注册: 2018-5-1',
-                              style: TextStyle(
-                                fontSize: 10,
-                                height: 1.3,
-                                color: Color(int.parse(_current.otherInfoColor.replaceFirst('#', '0xFF'))),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
-              ),
+  Widget _buildWidthBar() {
+    final curAvatar = _current.getAvatarSizeForWidth(_editingWidth);
+    final curRadius = _current.getBorderRadiusForWidth(_editingWidth);
 
-              // 右侧：正文栏与原生顶部信息
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.tune, size: 18, color: Color(0xFF192D50)),
+              const SizedBox(width: 6),
+              Text(
+                '排版宽度设定条 (${_editingWidth}px)',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF192D50)),
+              ),
+              const Spacer(),
+              InkWell(
+                onTap: () {
+                  setState(() => _current.defaultWidth = _editingWidth);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('已将 ${_editingWidth}px 设为此模板的默认宽度')),
+                  );
+                },
+                child: Row(
                   children: [
-                    // postinfo 栏
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          if (_current.showPostTime)
-                            InkWell(
-                              onTap: () => _showColorPickerSheet(
-                                '发帖时间',
-                                _current.postTimeColor,
-                                (c) => setState(() => _current.postTimeColor = c),
-                              ),
-                              child: Text(
-                                '发表于 2026-10-14 09:30',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: Color(int.parse(_current.postTimeColor.replaceFirst('#', '0xFF'))),
-                                ),
-                              ),
-                            )
-                          else
-                            const SizedBox(),
-                          if (_current.showFloorBadge)
-                            InkWell(
-                              onTap: () => _showColorPickerSheet(
-                                '楼层号',
-                                _current.floorColor,
-                                (c) => setState(() => _current.floorColor = c),
-                              ),
-                              child: Text(
-                                '1# 楼主',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(int.parse(_current.floorColor.replaceFirst('#', '0xFF'))),
-                                ),
-                              ),
-                            ),
-                        ],
+                    Icon(
+                      _current.defaultWidth == _editingWidth ? Icons.star : Icons.star_outline,
+                      size: 16,
+                      color: _current.defaultWidth == _editingWidth ? Colors.amber.shade800 : Colors.blueGrey,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      _current.defaultWidth == _editingWidth ? '默认宽度' : '设为默认',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: _current.defaultWidth == _editingWidth ? Colors.amber.shade800 : Colors.blueGrey,
                       ),
                     ),
-                    // 正文区
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Text(
-                        '这是经典论坛左右分栏的楼层正文：左侧保持原汁原味的作者头像、等级星级、积分注册资料；右侧上方为发表时间与楼层序号，所有功能按钮（回复/引用/评分）均已自动去除。',
-                        style: TextStyle(
-                          fontSize: 13,
-                          height: _current.postLineHeight,
-                          color: Color(int.parse(_current.postTextColor.replaceFirst('#', '0xFF'))),
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    // 签名档区
-                    if (_current.showSignature)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          border: Border(top: BorderSide(color: Colors.grey.shade100)),
-                          color: Colors.grey.shade50,
-                        ),
-                        child: const Text(
-                          '—— 原汁原味个性签名档',
-                          style: TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic),
-                        ),
-                      ),
                   ],
                 ),
               ),
             ],
           ),
-        ),
-      );
-    }
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [600, 800, 1000, 1280, 1440, 1920].map((w) {
+                final bool isSel = (_editingWidth == w);
+                final String label = (w == 600)
+                    ? '600px 手机'
+                    : (w == 800)
+                        ? '800px 标准'
+                        : (w == 1280)
+                            ? '1280px 超宽'
+                            : '${w}px';
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(
+                    label: Text(label),
+                    selected: isSel,
+                    selectedColor: const Color(0xFF192D50),
+                    labelStyle: TextStyle(
+                      color: isSel ? Colors.white : const Color(0xFF192D50),
+                      fontSize: 12,
+                      fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                    ),
+                    onSelected: (val) {
+                      if (val) setState(() => _editingWidth = w);
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Text('针对 ${_editingWidth}px 头像: ${curAvatar}px', style: const TextStyle(fontSize: 12)),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.remove_circle_outline, size: 18),
+                onPressed: curAvatar > 20
+                    ? () {
+                        setState(() {
+                          _current.setWidthConfig(_editingWidth, 'avatarSize', curAvatar - 2);
+                        });
+                      }
+                    : null,
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.add_circle_outline, size: 18),
+                onPressed: curAvatar < 64
+                    ? () {
+                        setState(() {
+                          _current.setWidthConfig(_editingWidth, 'avatarSize', curAvatar + 2);
+                        });
+                      }
+                    : null,
+              ),
+              const Spacer(),
+              if (_current.layoutMode == 'card') ...[
+                Text('圆角: ${curRadius}px', style: const TextStyle(fontSize: 12)),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.remove_circle_outline, size: 18),
+                  onPressed: curRadius > 0
+                      ? () {
+                          setState(() {
+                            _current.setWidthConfig(_editingWidth, 'borderRadius', curRadius - 2);
+                          });
+                        }
+                      : null,
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.add_circle_outline, size: 18),
+                  onPressed: curRadius < 30
+                      ? () {
+                          setState(() {
+                            _current.setWidthConfig(_editingWidth, 'borderRadius', curRadius + 2);
+                          });
+                        }
+                      : null,
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildInteractiveMockCard() {
+    if (_current.layoutMode == 'split') {
+      return _buildSplitMock();
+    } else if (_current.layoutMode == 'minimal') {
+      return _buildMinimalMock();
+    } else {
+      return _buildBubbleCardMock();
+    }
+  }
+
+  Widget _buildBubbleCardMock() {
+    final curAvatar = _current.getAvatarSizeForWidth(_editingWidth).toDouble().clamp(20.0, 56.0);
+    final curRadius = _current.getBorderRadiusForWidth(_editingWidth).toDouble();
+    final borderColor = Color(int.parse(_current.cardBorderColor.replaceFirst('#', '0xFF')));
+    final cardBg1 = Color(int.parse(_current.cardBackgroundColor.replaceFirst('#', '0xFF')));
+    final cardBg2 = Color(int.parse((_current.enableAlternateBubbleColor ? _current.alternateBubbleColor : _current.cardBackgroundColor).replaceFirst('#', '0xFF')));
+    final pageBg = Color(int.parse(_current.pageBackgroundColor.replaceFirst('#', '0xFF')));
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: pageBg,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '页面底色: ${_current.pageBackgroundColor}',
+                style: const TextStyle(fontSize: 11, color: Colors.blueGrey, fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+              InkWell(
+                onTap: () => _showColorPickerSheet(
+                  '页面背景底色',
+                  _current.pageBackgroundColor,
+                  (c) => setState(() => _current.pageBackgroundColor = c),
+                ),
+                child: const Text('点击更换底色', style: TextStyle(fontSize: 11, color: Color(0xFF0369a1), decoration: TextDecoration.underline)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          // 气泡 1 (楼主)
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: cardBg1,
+              borderRadius: BorderRadius.circular(curRadius),
+              border: _current.cardBorderWidth == 0 ? null : Border.all(color: borderColor, width: _current.cardBorderWidth.toDouble()),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 1)),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: _current.showFloorDivider ? Colors.black.withOpacity(0.06) : Colors.transparent,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      if (_current.showAvatar)
+                        InkWell(
+                          onTap: () {
+                            setState(() => _current.avatarRound = !_current.avatarRound);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('已切换头像形态：${_current.avatarRound ? "圆形" : "圆角方形"}')),
+                            );
+                          },
+                          child: Container(
+                            width: curAvatar,
+                            height: curAvatar,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF192D50),
+                              shape: _current.avatarRound ? BoxShape.circle : BoxShape.rectangle,
+                              borderRadius: _current.avatarRound ? null : BorderRadius.circular(4),
+                              border: Border.all(color: Color(int.parse(_current.avatarBorderColor.replaceFirst('#', '0xFF')))),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Text('H', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                          ),
+                        ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (_current.showUsername)
+                              InkWell(
+                                onTap: () => _showColorPickerSheet('用户名', _current.usernameColor, (c) => setState(() => _current.usernameColor = c)),
+                                child: Text(
+                                  'HelloEarth (点击调色)',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: _current.usernameBold ? FontWeight.bold : FontWeight.normal,
+                                    color: Color(int.parse(_current.usernameColor.replaceFirst('#', '0xFF'))),
+                                  ),
+                                ),
+                              ),
+                            if (_current.showOtherInfo)
+                              Text('金牌会员 · UID: 38294', style: TextStyle(fontSize: 10, color: Color(int.parse(_current.otherInfoColor.replaceFirst('#', '0xFF'))))),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (_current.showFloorBadge)
+                            Text('1# 楼主', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(int.parse(_current.floorColor.replaceFirst('#', '0xFF'))))),
+                          if (_current.showPostTime)
+                            Text('2026-10-14 09:30', style: TextStyle(fontSize: 10, color: Color(int.parse(_current.postTimeColor.replaceFirst('#', '0xFF'))))),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Text(
+                    '这是第一楼气泡卡片：每楼独立气泡包裹，宽度填满，支持调整气泡颜色与圆角边框。',
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: _current.postLineHeight,
+                      color: Color(int.parse(_current.postTextColor.replaceFirst('#', '0xFF'))),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // 气泡 2 (沙发 - 展现交替双色)
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: cardBg2,
+              borderRadius: BorderRadius.circular(curRadius),
+              border: _current.cardBorderWidth == 0 ? null : Border.all(color: borderColor, width: _current.cardBorderWidth.toDouble()),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 1)),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  child: Row(
+                    children: [
+                      if (_current.showAvatar)
+                        Container(
+                          width: curAvatar,
+                          height: curAvatar,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF0369A1),
+                            shape: _current.avatarRound ? BoxShape.circle : BoxShape.rectangle,
+                            borderRadius: _current.avatarRound ? null : BorderRadius.circular(4),
+                          ),
+                          alignment: Alignment.center,
+                          child: const Text('B', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                        ),
+                      const SizedBox(width: 6),
+                      const Expanded(
+                        child: Text('沙发回复者', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text('2# 沙发', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(int.parse(_current.floorColor.replaceFirst('#', '0xFF'))))),
+                          Text('2026-10-14 09:35', style: TextStyle(fontSize: 10, color: Color(int.parse(_current.postTimeColor.replaceFirst('#', '0xFF'))))),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  child: Text(
+                    _current.enableAlternateBubbleColor
+                        ? '这里是第二楼（偶数楼），已开启气泡交替双色 (${_current.alternateBubbleColor})！'
+                        : '这里是第二楼（偶数楼），当前使用统一单色气泡。',
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: _current.postLineHeight,
+                      color: Color(int.parse(_current.postTextColor.replaceFirst('#', '0xFF'))),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMinimalMock() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (_current.showUsername)
+                  Text(
+                    'HelloEarth',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Color(int.parse(_current.usernameColor.replaceFirst('#', '0xFF'))),
+                    ),
+                  ),
+                Row(
+                  children: [
+                    if (_current.showPostTime)
+                      Text(
+                        '2026-10-14 09:30',
+                        style: TextStyle(fontSize: 11, color: Color(int.parse(_current.postTimeColor.replaceFirst('#', '0xFF')))),
+                      ),
+                    const SizedBox(width: 8),
+                    if (_current.showFloorBadge)
+                      Text(
+                        '1# 楼主',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(int.parse(_current.floorColor.replaceFirst('#', '0xFF'))),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              '这是极简纯享排版预览：宽度填满整个页面，无多余边框与气泡阴影，专注于文档纯粹阅读。',
+              style: TextStyle(
+                fontSize: 13,
+                height: _current.postLineHeight,
+                color: Color(int.parse(_current.postTextColor.replaceFirst('#', '0xFF'))),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSplitMock() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(4),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
@@ -1029,147 +1394,174 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 顶部作者与楼层条 (缩窄紧凑化)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-            decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(
-                  color: _current.showFloorDivider ? Colors.grey.shade200 : Colors.transparent,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 左侧：经典论坛作者侧边栏
+            Container(
+              width: 130,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.blueGrey.shade50.withOpacity(0.5),
+                border: Border(
+                  right: BorderSide(color: Colors.grey.shade300),
                 ),
               ),
-            ),
-            child: Row(
-              children: [
-                // 头像
-                if (_current.showAvatar)
-                  InkWell(
-                    onTap: () {
-                      setState(() => _current.avatarRound = !_current.avatarRound);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('已切换头像形态：${_current.avatarRound ? "圆形" : "圆角方形"}')),
-                      );
-                    },
-                    child: Container(
-                      width: _current.avatarSize.toDouble().clamp(24.0, 56.0),
-                      height: _current.avatarSize.toDouble().clamp(24.0, 56.0),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF192D50),
-                        shape: _current.avatarRound ? BoxShape.circle : BoxShape.rectangle,
-                        borderRadius: _current.avatarRound ? null : BorderRadius.circular(4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (_current.showUsername)
+                    InkWell(
+                      onTap: () => _showColorPickerSheet(
+                        '用户名',
+                        _current.usernameColor,
+                        (c) => setState(() => _current.usernameColor = c),
                       ),
-                      alignment: Alignment.center,
-                      child: const Text('H', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                    ),
-                  ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 用户名
-                      if (_current.showUsername)
-                        InkWell(
-                          onTap: () => _showColorPickerSheet(
-                            '用户名',
-                            _current.usernameColor,
-                            (c) => setState(() => _current.usernameColor = c),
-                          ),
-                          child: Text(
-                            'HelloEarth (点击调色)',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: _current.usernameBold ? FontWeight.bold : FontWeight.normal,
-                              color: Color(int.parse(_current.usernameColor.replaceFirst('#', '0xFF'))),
-                            ),
-                          ),
+                      child: Text(
+                        'HelloEarth',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: _current.usernameBold ? FontWeight.bold : FontWeight.normal,
+                          color: Color(int.parse(_current.usernameColor.replaceFirst('#', '0xFF'))),
                         ),
-                      // 剩余其他信息
-                      if (_current.showOtherInfo)
-                        InkWell(
-                          onTap: () => _showColorPickerSheet(
-                            '其他信息',
-                            _current.otherInfoColor,
-                            (c) => setState(() => _current.otherInfoColor = c),
-                          ),
-                          child: Text(
-                            '☀️☀️🌙 (金牌会员) · UID: 38294 · 帖子: 154 · 积分: 890',
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  if (_current.showAvatar)
+                    InkWell(
+                      onTap: () {
+                        setState(() => _current.avatarRound = !_current.avatarRound);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('已切换头像形态：${_current.avatarRound ? "圆形" : "方形"}')),
+                        );
+                      },
+                      child: Container(
+                        width: _current.avatarSize.toDouble().clamp(36.0, 56.0),
+                        height: _current.avatarSize.toDouble().clamp(36.0, 56.0),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF192D50),
+                          shape: _current.avatarRound ? BoxShape.circle : BoxShape.rectangle,
+                          borderRadius: _current.avatarRound ? null : BorderRadius.circular(4),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Text('H', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  if (_current.showOtherInfo)
+                    InkWell(
+                      onTap: () => _showColorPickerSheet(
+                        '其他信息',
+                        _current.otherInfoColor,
+                        (c) => setState(() => _current.otherInfoColor = c),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '金牌会员 ☀️☀️🌙',
                             style: TextStyle(
-                              fontSize: 11,
+                              fontSize: 10,
                               color: Color(int.parse(_current.otherInfoColor.replaceFirst('#', '0xFF'))),
                             ),
                           ),
-                        ),
-                    ],
+                          const SizedBox(height: 2),
+                          Text(
+                            'UID: 38294\n帖子: 154\n积分: 890\n注册: 2018-5-1',
+                            style: TextStyle(
+                              fontSize: 10,
+                              height: 1.3,
+                              color: Color(int.parse(_current.otherInfoColor.replaceFirst('#', '0xFF'))),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+
+            // 右侧：正文栏与原生顶部信息
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        if (_current.showPostTime)
+                          InkWell(
+                            onTap: () => _showColorPickerSheet(
+                              '发帖时间',
+                              _current.postTimeColor,
+                              (c) => setState(() => _current.postTimeColor = c),
+                            ),
+                            child: Text(
+                              '发表于 2026-10-14 09:30',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Color(int.parse(_current.postTimeColor.replaceFirst('#', '0xFF'))),
+                              ),
+                            ),
+                          )
+                        else
+                          const SizedBox(),
+                        if (_current.showFloorBadge)
+                          InkWell(
+                            onTap: () => _showColorPickerSheet(
+                              '楼层号',
+                              _current.floorColor,
+                              (c) => setState(() => _current.floorColor = c),
+                            ),
+                            child: Text(
+                              '1# 楼主',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: Color(int.parse(_current.floorColor.replaceFirst('#', '0xFF'))),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-                // 时间与楼层
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    if (_current.showFloorBadge)
-                      InkWell(
-                        onTap: () => _showColorPickerSheet(
-                          '楼层号',
-                          _current.floorColor,
-                          (c) => setState(() => _current.floorColor = c),
-                        ),
-                        child: Text(
-                          '楼主 (点击调色)',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Color(int.parse(_current.floorColor.replaceFirst('#', '0xFF'))),
-                          ),
-                        ),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(
+                      '这是经典论坛左右分栏的楼层正文：左侧保持原汁原味的作者头像、等级星级、积分注册资料；右侧上方为发表时间与楼层序号，所有功能按钮（回复/引用/评分）均已自动去除。',
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: _current.postLineHeight,
+                        color: Color(int.parse(_current.postTextColor.replaceFirst('#', '0xFF'))),
                       ),
-                    if (_current.showPostTime)
-                      InkWell(
-                        onTap: () => _showColorPickerSheet(
-                          '发帖时间',
-                          _current.postTimeColor,
-                          (c) => setState(() => _current.postTimeColor = c),
-                        ),
-                        child: Text(
-                          '2026-10-14 09:30',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Color(int.parse(_current.postTimeColor.replaceFirst('#', '0xFF'))),
-                          ),
-                        ),
+                    ),
+                  ),
+                  const Spacer(),
+                  if (_current.showSignature)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        border: Border(top: BorderSide(color: Colors.grey.shade100)),
+                        color: Colors.grey.shade50,
                       ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // 正文区
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Text(
-              '这是论坛楼层正文预览效果：文字排版紧凑适度，段落间距自然。点击可设置行高与颜色。',
-              style: TextStyle(
-                fontSize: 14,
-                height: _current.postLineHeight,
-                color: Color(int.parse(_current.postTextColor.replaceFirst('#', '0xFF'))),
+                      child: const Text(
+                        '—— 原汁原味个性签名档',
+                        style: TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic),
+                      ),
+                    ),
+                ],
               ),
             ),
-          ),
-          // 签名档区
-          if (_current.showSignature)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              color: Colors.grey.shade50,
-              child: const Text(
-                '—— 这是一条个性签名档 (已开启展示)',
-                style: TextStyle(fontSize: 11, color: Colors.grey, fontStyle: FontStyle.italic),
-              ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

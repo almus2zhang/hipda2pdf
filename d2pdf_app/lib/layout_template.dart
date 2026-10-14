@@ -39,15 +39,23 @@ class LayoutTemplate {
   bool showSignature; // 是否显示签名档
 
   // 整体卡片排版模式：
-  // 'card': 现代移动卡片流式（原600px卡片风格，上下结构，支持各宽度自适应）
+  // 'card': 现代移动卡片流式（每楼独立气泡卡片，支持交替双色、边框与底色，各宽度自动填满）
   // 'split': 经典论坛左右分栏（左侧作者栏，右侧正文栏）
-  // 'minimal': 极简阅读（去掉多余修饰，纯净阅读）
+  // 'minimal': 极简阅读（去掉多余修饰，纯净阅读，全宽填满）
   String layoutMode; 
 
-  // 卡片外框/分割线样式
-  String cardBorderColor; // 如 "#e5e7eb"
-  bool showFloorDivider; // 楼层之间是否有分割线/卡片阴影
-  String cardBackgroundColor; // 如 "#ffffff"
+  // 气泡卡片外框/分割线/背景样式
+  String cardBorderColor; // 如 "#e2e8f0"
+  int cardBorderWidth; // 气泡边框粗细，如 1px (0 为无边框)
+  int cardBorderRadius; // 气泡圆角大小，如 10px
+  bool showFloorDivider; // 楼层内作者与正文间微弱分割线
+  String cardBackgroundColor; // 气泡主颜色，如 "#ffffff"
+  bool enableAlternateBubbleColor; // 是否启用气泡交替双色
+  String alternateBubbleColor; // 气泡交替第二色，如 "#f8fafc" 或 "#f0f7ff"
+  String pageBackgroundColor; // 页面背景底色，如 "#f1f5f9" 或 "#ffffff"
+
+  // 针对不同宽度的布局微调配置 (如 600, 800, 1000 等各宽度的头像大小、圆角等)
+  Map<String, dynamic> widthConfigs;
 
   // 额外自定义 CSS (AI分析生成或高级微调时使用)
   String customCss;
@@ -59,7 +67,7 @@ class LayoutTemplate {
     this.defaultWidth = 600,
     this.isBuiltin = false,
     this.showAvatar = true,
-    this.avatarSize = 42,
+    this.avatarSize = 30,
     this.avatarRound = true,
     this.avatarBorderColor = '#e5e7eb',
     this.showUsername = true,
@@ -77,11 +85,54 @@ class LayoutTemplate {
     this.postLineHeight = 1.65,
     this.showSignature = false,
     this.layoutMode = 'card',
-    this.cardBorderColor = '#e5e7eb',
-    this.showFloorDivider = true,
+    this.cardBorderColor = '#e2e8f0',
+    this.cardBorderWidth = 1,
+    this.cardBorderRadius = 10,
+    this.showFloorDivider = false,
     this.cardBackgroundColor = '#ffffff',
+    this.enableAlternateBubbleColor = false,
+    this.alternateBubbleColor = '#f8fafc',
+    this.pageBackgroundColor = '#f1f5f9',
+    Map<String, dynamic>? widthConfigs,
     this.customCss = '',
-  });
+  }) : widthConfigs = widthConfigs ?? {};
+
+  /// 获取指定宽度下的头像大小 (若该宽度有微调则使用微调值，否则返回全局设置)
+  int getAvatarSizeForWidth(int width) {
+    final cfg = widthConfigs[width.toString()];
+    if (cfg is Map && cfg['avatarSize'] != null) {
+      return (cfg['avatarSize'] as num).toInt();
+    }
+    if (width <= 600 && avatarSize > 32) return 30;
+    return avatarSize;
+  }
+
+  /// 获取指定宽度下的卡片圆角大小
+  int getBorderRadiusForWidth(int width) {
+    final cfg = widthConfigs[width.toString()];
+    if (cfg is Map && cfg['borderRadius'] != null) {
+      return (cfg['borderRadius'] as num).toInt();
+    }
+    return cardBorderRadius;
+  }
+
+  /// 为特定宽度微调属性
+  void setWidthConfig(int width, String key, dynamic value) {
+    widthConfigs = Map<String, dynamic>.from(widthConfigs);
+    final keyStr = width.toString();
+    final cur = Map<String, dynamic>.from(widthConfigs[keyStr] as Map? ?? {});
+    cur[key] = value;
+    widthConfigs[keyStr] = cur;
+  }
+
+  /// 获取特定宽度的微调属性
+  dynamic getWidthConfig(int width, String key) {
+    final cfg = widthConfigs[width.toString()];
+    if (cfg is Map) {
+      return cfg[key];
+    }
+    return null;
+  }
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -109,12 +160,19 @@ class LayoutTemplate {
     'showSignature': showSignature,
     'layoutMode': layoutMode,
     'cardBorderColor': cardBorderColor,
+    'cardBorderWidth': cardBorderWidth,
+    'cardBorderRadius': cardBorderRadius,
     'showFloorDivider': showFloorDivider,
     'cardBackgroundColor': cardBackgroundColor,
+    'enableAlternateBubbleColor': enableAlternateBubbleColor,
+    'alternateBubbleColor': alternateBubbleColor,
+    'pageBackgroundColor': pageBackgroundColor,
+    'widthConfigs': widthConfigs,
     'customCss': customCss,
   };
 
   factory LayoutTemplate.fromJson(Map<String, dynamic> json) {
+    final mode = json['layoutMode'] ?? 'card';
     return LayoutTemplate(
       id: json['id'] ?? 'custom_${DateTime.now().millisecondsSinceEpoch}',
       name: json['name'] ?? '自定义模板',
@@ -122,7 +180,7 @@ class LayoutTemplate {
       defaultWidth: json['defaultWidth'] ?? 600,
       isBuiltin: json['isBuiltin'] ?? false,
       showAvatar: json['showAvatar'] ?? true,
-      avatarSize: json['avatarSize'] ?? 42,
+      avatarSize: json['avatarSize'] ?? 30,
       avatarRound: json['avatarRound'] ?? true,
       avatarBorderColor: json['avatarBorderColor'] ?? '#e5e7eb',
       showUsername: json['showUsername'] ?? true,
@@ -139,10 +197,18 @@ class LayoutTemplate {
       postTextColor: json['postTextColor'] ?? '#1f2937',
       postLineHeight: (json['postLineHeight'] as num?)?.toDouble() ?? 1.65,
       showSignature: json['showSignature'] ?? false,
-      layoutMode: json['layoutMode'] ?? 'card',
-      cardBorderColor: json['cardBorderColor'] ?? '#e5e7eb',
-      showFloorDivider: json['showFloorDivider'] ?? true,
+      layoutMode: mode,
+      cardBorderColor: json['cardBorderColor'] ?? '#e2e8f0',
+      cardBorderWidth: json['cardBorderWidth'] ?? 1,
+      cardBorderRadius: json['cardBorderRadius'] ?? 10,
+      showFloorDivider: json['showFloorDivider'] ?? false,
       cardBackgroundColor: json['cardBackgroundColor'] ?? '#ffffff',
+      enableAlternateBubbleColor: json['enableAlternateBubbleColor'] ?? false,
+      alternateBubbleColor: json['alternateBubbleColor'] ?? '#f8fafc',
+      pageBackgroundColor: json['pageBackgroundColor'] ?? (mode == 'card' ? '#f1f5f9' : '#ffffff'),
+      widthConfigs: (json['widthConfigs'] is Map)
+          ? Map<String, dynamic>.from(json['widthConfigs'])
+          : {},
       customCss: json['customCss'] ?? '',
     );
   }
@@ -173,8 +239,14 @@ class LayoutTemplate {
     bool? showSignature,
     String? layoutMode,
     String? cardBorderColor,
+    int? cardBorderWidth,
+    int? cardBorderRadius,
     bool? showFloorDivider,
     String? cardBackgroundColor,
+    bool? enableAlternateBubbleColor,
+    String? alternateBubbleColor,
+    String? pageBackgroundColor,
+    Map<String, dynamic>? widthConfigs,
     String? customCss,
   }) {
     return LayoutTemplate(
@@ -203,8 +275,14 @@ class LayoutTemplate {
       showSignature: showSignature ?? this.showSignature,
       layoutMode: layoutMode ?? this.layoutMode,
       cardBorderColor: cardBorderColor ?? this.cardBorderColor,
+      cardBorderWidth: cardBorderWidth ?? this.cardBorderWidth,
+      cardBorderRadius: cardBorderRadius ?? this.cardBorderRadius,
       showFloorDivider: showFloorDivider ?? this.showFloorDivider,
       cardBackgroundColor: cardBackgroundColor ?? this.cardBackgroundColor,
+      enableAlternateBubbleColor: enableAlternateBubbleColor ?? this.enableAlternateBubbleColor,
+      alternateBubbleColor: alternateBubbleColor ?? this.alternateBubbleColor,
+      pageBackgroundColor: pageBackgroundColor ?? this.pageBackgroundColor,
+      widthConfigs: widthConfigs ?? this.widthConfigs,
       customCss: customCss ?? this.customCss,
     );
   }
@@ -215,17 +293,17 @@ class TemplateManager {
   static const String _kStorageKey = 'd2pdf_custom_templates_v1';
   static const String _kSelectedTemplateKey = 'd2pdf_selected_template_id';
 
-  // 1. 经典移动卡片 (原600px默认卡片，现在解耦支持全宽度)
+  // 1. 经典移动卡片 (每层楼独立气泡卡片，支持气泡单双交替色、边框与底色，各宽度自动填满)
   static final LayoutTemplate defaultCard = LayoutTemplate(
     id: 'builtin_card',
-    name: '经典移动卡片',
-    description: '30px紧凑头像，顶部用户名与时间楼层紧凑窄幅排版，支持任意宽度自适应。',
+    name: '经典气泡卡片',
+    description: '每楼独立气泡卡片，支持气泡双色交替、边框与底色，各宽度自动填满。',
     defaultWidth: 600,
     isBuiltin: true,
     showAvatar: true,
     avatarSize: 30,
     avatarRound: true,
-    avatarBorderColor: '#e5e7eb',
+    avatarBorderColor: '#e2e8f0',
     showUsername: true,
     usernameColor: '#111827',
     usernameBold: true,
@@ -239,9 +317,20 @@ class TemplateManager {
     postLineHeight: 1.65,
     showSignature: false,
     layoutMode: 'card',
-    cardBorderColor: '#e5e7eb',
-    showFloorDivider: true,
+    cardBorderColor: '#e2e8f0',
+    cardBorderWidth: 1,
+    cardBorderRadius: 10,
+    showFloorDivider: false,
     cardBackgroundColor: '#ffffff',
+    enableAlternateBubbleColor: true,
+    alternateBubbleColor: '#f8fafc',
+    pageBackgroundColor: '#f1f5f9',
+    widthConfigs: {
+      '600': {'avatarSize': 30, 'borderRadius': 10},
+      '800': {'avatarSize': 36, 'borderRadius': 12},
+      '1000': {'avatarSize': 38, 'borderRadius': 12},
+      '1280': {'avatarSize': 42, 'borderRadius': 14},
+    },
   );
 
   // 2. 论坛全要素左右分栏版
@@ -269,15 +358,20 @@ class TemplateManager {
     showSignature: true,
     layoutMode: 'split',
     cardBorderColor: '#e2e8f0',
+    cardBorderWidth: 1,
+    cardBorderRadius: 0,
     showFloorDivider: true,
     cardBackgroundColor: '#ffffff',
+    enableAlternateBubbleColor: false,
+    alternateBubbleColor: '#ffffff',
+    pageBackgroundColor: '#ffffff',
   );
 
   // 3. 极简纯粹阅读
   static final LayoutTemplate minimalReader = LayoutTemplate(
     id: 'builtin_minimal',
     name: '极简阅读纯享',
-    description: '隐藏头像与繁杂信息，仅保留楼层与轻量用户名，专注文档与文章阅读。',
+    description: '隐藏头像与繁杂信息，仅保留楼层与轻量用户名，专注文档与文章阅读，全宽填满。',
     defaultWidth: 600,
     isBuiltin: true,
     showAvatar: false,
@@ -293,9 +387,14 @@ class TemplateManager {
     postLineHeight: 1.75,
     showSignature: false,
     layoutMode: 'minimal',
-    cardBorderColor: '#f3f4f6',
+    cardBorderColor: '#e5e7eb',
+    cardBorderWidth: 1,
+    cardBorderRadius: 0,
     showFloorDivider: true,
     cardBackgroundColor: '#ffffff',
+    enableAlternateBubbleColor: false,
+    alternateBubbleColor: '#ffffff',
+    pageBackgroundColor: '#ffffff',
   );
 
   static List<LayoutTemplate> getBuiltinTemplates() {
