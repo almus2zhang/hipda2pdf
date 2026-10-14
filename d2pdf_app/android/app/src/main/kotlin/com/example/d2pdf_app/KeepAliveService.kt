@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
@@ -21,20 +22,41 @@ class KeepAliveService : Service() {
         const val ACTION_STOP = "com.example.d2pdf.ACTION_STOP"
 
         const val CHANNEL_ID = "d2pdf_batch_channel"
-        const val CHANNEL_NAME = "D2PDF 批量生成任务"
+        const val CHANNEL_NAME = "D2PDF 任务生成与后台保活"
         const val NOTIFICATION_ID = 20261
 
+        @Volatile
+        var isRunning: Boolean = false
+            private set
+
         private var wakeLock: PowerManager.WakeLock? = null
+        private var wifiLock: WifiManager.WifiLock? = null
 
         fun start(context: Context, title: String, content: String) {
+            isRunning = true
             try {
                 if (wakeLock == null) {
                     val pm = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-                    wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "D2PDF:BatchWakeLock")
+                    wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "D2PDF:KeepAliveWakeLock")
                     wakeLock?.setReferenceCounted(false)
                 }
                 if (wakeLock?.isHeld != true) {
                     wakeLock?.acquire(3 * 60 * 60 * 1000L) // 3 hours limit
+                }
+
+                if (wifiLock == null) {
+                    val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+                    val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        WifiManager.WIFI_MODE_FULL_LOW_LATENCY
+                    } else {
+                        @Suppress("DEPRECATION")
+                        WifiManager.WIFI_MODE_FULL_HIGH_PERF
+                    }
+                    wifiLock = wm?.createWifiLock(mode, "D2PDF:KeepAliveWifiLock")
+                    wifiLock?.setReferenceCounted(false)
+                }
+                if (wifiLock?.isHeld != true) {
+                    wifiLock?.acquire()
                 }
             } catch (_: Exception) {}
 
@@ -62,9 +84,15 @@ class KeepAliveService : Service() {
         }
 
         fun stop(context: Context) {
+            isRunning = false
             try {
                 if (wakeLock?.isHeld == true) {
                     wakeLock?.release()
+                }
+            } catch (_: Exception) {}
+            try {
+                if (wifiLock?.isHeld == true) {
+                    wifiLock?.release()
                 }
             } catch (_: Exception) {}
 
@@ -80,7 +108,8 @@ class KeepAliveService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_START -> {
-                val title = intent.getStringExtra("title") ?: "HiPDA D2PDF 批量导出"
+                isRunning = true
+                val title = intent.getStringExtra("title") ?: "HiPDA D2PDF 任务生成"
                 val content = intent.getStringExtra("content") ?: "正在后台处理任务，请保持应用运行..."
                 createNotificationChannel()
                 val notification = buildNotification(title, content, -1, -1)
@@ -91,11 +120,13 @@ class KeepAliveService : Service() {
                         startForeground(NOTIFICATION_ID, notification)
                     }
                 } catch (_: Exception) {
-                    startForeground(NOTIFICATION_ID, notification)
+                    try {
+                        startForeground(NOTIFICATION_ID, notification)
+                    } catch (_: Exception) {}
                 }
             }
             ACTION_UPDATE -> {
-                val title = intent.getStringExtra("title") ?: "HiPDA D2PDF 批量导出"
+                val title = intent.getStringExtra("title") ?: "HiPDA D2PDF 任务生成"
                 val content = intent.getStringExtra("content") ?: "正在导出中..."
                 val progress = intent.getIntExtra("progress", -1)
                 val max = intent.getIntExtra("max", -1)
@@ -103,9 +134,15 @@ class KeepAliveService : Service() {
                 nm.notify(NOTIFICATION_ID, buildNotification(title, content, progress, max))
             }
             ACTION_STOP -> {
+                isRunning = false
                 try {
                     if (wakeLock?.isHeld == true) {
                         wakeLock?.release()
+                    }
+                } catch (_: Exception) {}
+                try {
+                    if (wifiLock?.isHeld == true) {
+                        wifiLock?.release()
                     }
                 } catch (_: Exception) {}
                 stopForeground(true)
@@ -158,9 +195,15 @@ class KeepAliveService : Service() {
     }
 
     override fun onDestroy() {
+        isRunning = false
         try {
             if (wakeLock?.isHeld == true) {
                 wakeLock?.release()
+            }
+        } catch (_: Exception) {}
+        try {
+            if (wifiLock?.isHeld == true) {
+                wifiLock?.release()
             }
         } catch (_: Exception) {}
         super.onDestroy()

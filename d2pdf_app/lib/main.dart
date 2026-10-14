@@ -789,6 +789,14 @@ class _MainScreenState extends State<MainScreen> {
         }
 
         final double singlePageFraction = (page - 1) / totalPages;
+        if (!isBatch) {
+          await D2PdfConverter.updateKeepAlive(
+            title: 'HiPDA D2PDF 正在生成 ($page/$totalPages)',
+            content: actualTitle,
+            progress: page,
+            max: totalPages,
+          );
+        }
         setState(() {
           _conversionStatus = isBatch
               ? '批量进度 ($batchIndex/$batchTotal): 正在拉取第 $page / $totalPages 页数据...'
@@ -1344,6 +1352,8 @@ class _MainScreenState extends State<MainScreen> {
                     loadWithOverviewMode: true,
                     cacheEnabled: true,
                     thirdPartyCookiesEnabled: true,
+                    mixedContentMode: MixedContentMode.MIXED_CONTENT_ALWAYS_ALLOW,
+                    allowsInlineMediaPlayback: true,
                     userAgent: _MainScreenState.kDesktopUserAgent,
                   ),
                   onWebViewCreated: (controller) {

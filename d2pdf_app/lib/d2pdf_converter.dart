@@ -32,8 +32,21 @@ class D2PdfConverter {
     } catch (_) {}
   }
 
+  /// Request notifications and keep-alive permissions for reliable background execution
+  static Future<void> checkAndRequestKeepAlivePermissions() async {
+    try {
+      if (Platform.isAndroid) {
+        final notifStatus = await Permission.notification.status;
+        if (!notifStatus.isGranted) {
+          await Permission.notification.request();
+        }
+      }
+    } catch (_) {}
+  }
+
   /// Start background keep-alive service & wake lock
   static Future<void> startKeepAlive({required String title, required String content}) async {
+    await checkAndRequestKeepAlivePermissions();
     try {
       await _nativeChannel.invokeMethod('startKeepAlive', {'title': title, 'content': content});
     } catch (_) {}

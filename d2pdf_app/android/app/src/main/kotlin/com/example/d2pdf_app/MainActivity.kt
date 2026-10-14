@@ -62,6 +62,20 @@ class MainActivity: FlutterActivity() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        try {
+            WebView(applicationContext).resumeTimers()
+        } catch (_: Exception) {}
+    }
+
+    override fun onStop() {
+        super.onStop()
+        try {
+            WebView(applicationContext).resumeTimers()
+        } catch (_: Exception) {}
+    }
+
     private fun convertHtmlToPdf(
         htmlContent: String,
         outputPath: String,
@@ -79,17 +93,20 @@ class MainActivity: FlutterActivity() {
                     }
                 }
 
-                // 25 second safety timeout to prevent hanging forever
+                // 45 second safety timeout to prevent hanging forever
                 val handler = android.os.Handler(android.os.Looper.getMainLooper())
                 val timeoutRunnable = Runnable {
                     finishOnce(false, "PDF 生成超时，请检查网络或重试")
                 }
-                handler.postDelayed(timeoutRunnable, 25000)
+                handler.postDelayed(timeoutRunnable, 45000)
 
                 val widthPx = (widthMills * 96.0 / 1000.0).toInt().coerceAtLeast(600)
                 val heightPx = (heightMills * 96.0 / 1000.0).toInt().coerceAtLeast(1080)
 
-                val webView = WebView(this)
+                // Use applicationContext so WebView is independent of Activity Window lifecycle
+                val webView = WebView(applicationContext)
+                webView.onResume()
+                webView.resumeTimers()
                 webView.setBackgroundColor(android.graphics.Color.WHITE)
                 val settings = webView.settings
                 settings.javaScriptEnabled = true
@@ -103,16 +120,18 @@ class MainActivity: FlutterActivity() {
                     CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
                 }
 
-                // Attach webView to root view hierarchy with invisible visibility so Android WebView does layout & drawing passes
-                val rootLayout = window.decorView as? android.view.ViewGroup
-                val lp = android.view.ViewGroup.LayoutParams(widthPx, heightPx)
-                webView.visibility = android.view.View.INVISIBLE
-                rootLayout?.addView(webView, lp)
+                // Layout directly in memory without attaching to Activity Window/decorView,
+                // preventing freeze when Activity is in background or screen is off
+                webView.measure(
+                    android.view.View.MeasureSpec.makeMeasureSpec(widthPx, android.view.View.MeasureSpec.EXACTLY),
+                    android.view.View.MeasureSpec.makeMeasureSpec(heightPx, android.view.View.MeasureSpec.EXACTLY)
+                )
+                webView.layout(0, 0, widthPx, heightPx)
 
                 fun cleanup() {
                     handler.removeCallbacks(timeoutRunnable)
                     try {
-                        rootLayout?.removeView(webView)
+                        webView.stopLoading()
                         webView.destroy()
                     } catch (_: Exception) {}
                 }
@@ -135,12 +154,14 @@ class MainActivity: FlutterActivity() {
                             val finalHeightPx = Math.max(heightPx, measured + 40)
                             val finalHeightMills = (finalHeightPx * 1000.0 / 96.0).toInt()
 
-                            view?.postDelayed({
+                            // IMPORTANT: Use handler.postDelayed (main looper), NOT view?.postDelayed!
+                            // View.postDelayed will halt when Activity is in background!
+                            handler.postDelayed({
                                 printWebView(webView, outputPath, widthMills, finalHeightMills) { success, err ->
                                     cleanup()
                                     finishOnce(success, err)
                                 }
-                            }, 1200)
+                            }, 1000)
                         }
                     }
                 }
