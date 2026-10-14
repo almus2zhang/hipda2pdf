@@ -80,36 +80,39 @@ class TemplateRenderer {
           });
         });
 
-        // 隐藏 #postlist 之后的所有同级干扰元素
+        // 确保 #postlist 容器绝对可见，绝不可隐匿
         var postlist = document.getElementById('postlist');
         if (postlist) {
+          postlist.style.display = 'block';
+          postlist.style.visibility = 'visible';
+          postlist.style.opacity = '1';
+          // 仅隐藏 #postlist 之后且非帖子内容的同级干扰元素
           var sib = postlist.nextElementSibling;
           while (sib) {
             var next = sib.nextElementSibling;
-            sib.remove();
+            if (!sib.id || (!sib.id.startsWith('post') && !sib.className.includes('viewthread'))) {
+              sib.remove();
+            }
             sib = next;
           }
         }
 
-        // 移除回复按钮与“返回列表”及顶部干扰工具
-        document.querySelectorAll('a, button, span, div, p, em').forEach(function(el) {
+        // 仅对 a 与 button 标签精确比对交互文字，绝不查询 div/span/p，彻底避免误伤正文与 postlist 容器
+        document.querySelectorAll('a, button').forEach(function(el) {
           var t = el.innerText ? el.innerText.trim() : '';
           if (t === '发表回复' || t === '发表新帖' || t === '发新帖' || t === '发帖' || t === '回复' ||
               t === '返回列表' || t.indexOf('返回列表') !== -1 ||
-              t.indexOf('倒序看帖') !== -1 || t.indexOf('倒序看贴') !== -1 ||
-              t.indexOf('正序看帖') !== -1 || t.indexOf('正序看贴') !== -1 ||
-              t.indexOf('跳转到') !== -1 ||
-              t.indexOf('只看该作者') !== -1) {
-            var container = el.closest('.pages_btns') || el.closest('.postbtn') || el.closest('.forumcontrol') ||
-                            el.closest('#postlist_act') || el.closest('.pagecontrol') || el.closest('em.rpostno') || el;
-            if (container) container.style.display = 'none';
+              t === '倒序看帖' || t === '倒序看贴' || t.indexOf('倒序看') !== -1 ||
+              t === '正序看帖' || t === '正序看贴' || t.indexOf('正序看') !== -1 ||
+              t === '只看该作者' || t.indexOf('只看该作者') !== -1 ||
+              t === '打印' || t.indexOf('打印') !== -1) {
+            el.style.display = 'none';
           }
         });
 
-        document.querySelectorAll('a').forEach(function(a) {
-          if (a.innerText && (a.innerText.indexOf('只看该作者') !== -1 || a.innerText.indexOf('打印') !== -1)) {
-            a.style.display = 'none';
-          }
+        // 隐藏顶部跳转与字体控制等叶子元素（严格限定只隐藏具体微小控件，绝不向上隐藏容器）
+        document.querySelectorAll('.rpostno, em.rpostno, #rpostnobtn, #rpostnovalue, .msgfsize, .pagecontrol, a.print').forEach(function(el) {
+          el.style.display = 'none';
         });
 
         // 控制签名档显示与隐藏
@@ -178,7 +181,14 @@ class TemplateRenderer {
             if (postInfo) {
               var strongEl = postInfo.querySelector('strong');
               if (strongEl) {
-                floorText = strongEl.innerText.replace(/\\s+/g, ' ').trim();
+                var postnumA = strongEl.querySelector('a[id^="postnum"]') || strongEl.querySelector('a');
+                if (postnumA) {
+                  floorText = postnumA.innerText.replace(/\\s+/g, ' ').trim();
+                } else {
+                  var strongClone = strongEl.cloneNode(true);
+                  strongClone.querySelectorAll('.rpostno, a, input, span').forEach(function(r) { r.remove(); });
+                  floorText = strongClone.innerText.replace(/\\s+/g, ' ').trim();
+                }
               }
 
               var emList = postInfo.querySelectorAll('em');
@@ -348,7 +358,16 @@ class TemplateRenderer {
             var floorText = '';
             if (postInfo) {
               var strongEl = postInfo.querySelector('strong');
-              if (strongEl) floorText = strongEl.innerText.replace(/\\s+/g, ' ').trim();
+              if (strongEl) {
+                var postnumA = strongEl.querySelector('a[id^="postnum"]') || strongEl.querySelector('a');
+                if (postnumA) {
+                  floorText = postnumA.innerText.replace(/\\s+/g, ' ').trim();
+                } else {
+                  var strongClone = strongEl.cloneNode(true);
+                  strongClone.querySelectorAll('.rpostno, a, input, span').forEach(function(r) { r.remove(); });
+                  floorText = strongClone.innerText.replace(/\\s+/g, ' ').trim();
+                }
+              }
               var emList = postInfo.querySelectorAll('em');
               emList.forEach(function(em) {
                 var t = em.innerText.trim();
@@ -629,6 +648,9 @@ class TemplateRenderer {
             min-height: 0 !important;
             margin-bottom: 0 !important;
             padding-bottom: 0 !important;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
           }
 
           ${layoutMode == 'card' ? '''
