@@ -116,12 +116,46 @@ class LayoutTemplate {
     return cardBorderRadius;
   }
 
+  /// 检查某宽度下某元素是否显示 (优先使用该宽度独立定制配置，否则回退到模板基准设置)
+  bool isElementVisibleForWidth(int width, String key, bool defaultValue) {
+    final cfg = widthConfigs[width.toString()];
+    if (cfg is Map && cfg.containsKey(key)) {
+      return cfg[key] == true;
+    }
+    return defaultValue;
+  }
+
+  bool getShowAvatarForWidth(int width) => isElementVisibleForWidth(width, 'showAvatar', showAvatar);
+  bool getShowUsernameForWidth(int width) => isElementVisibleForWidth(width, 'showUsername', showUsername);
+  bool getShowOtherInfoForWidth(int width) => isElementVisibleForWidth(width, 'showOtherInfo', showOtherInfo);
+  bool getShowFloorBadgeForWidth(int width) => isElementVisibleForWidth(width, 'showFloorBadge', showFloorBadge);
+  bool getShowPostTimeForWidth(int width) => isElementVisibleForWidth(width, 'showPostTime', showPostTime);
+  bool getShowSignatureForWidth(int width) => isElementVisibleForWidth(width, 'showSignature', showSignature);
+  bool getShowFloorDividerForWidth(int width) => isElementVisibleForWidth(width, 'showFloorDivider', showFloorDivider);
+
+  /// 设置或清除某宽度下某元素的定制显示状态 (value 为 null 表示重置跟随模板通用值)
+  void setElementVisibleForWidth(int width, String key, bool? value) {
+    widthConfigs = Map<String, dynamic>.from(widthConfigs);
+    final keyStr = width.toString();
+    final cur = Map<String, dynamic>.from(widthConfigs[keyStr] as Map? ?? {});
+    if (value == null) {
+      cur.remove(key);
+    } else {
+      cur[key] = value;
+    }
+    widthConfigs[keyStr] = cur;
+  }
+
   /// 为特定宽度微调属性
   void setWidthConfig(int width, String key, dynamic value) {
     widthConfigs = Map<String, dynamic>.from(widthConfigs);
     final keyStr = width.toString();
     final cur = Map<String, dynamic>.from(widthConfigs[keyStr] as Map? ?? {});
-    cur[key] = value;
+    if (value == null) {
+      cur.remove(key);
+    } else {
+      cur[key] = value;
+    }
     widthConfigs[keyStr] = cur;
   }
 

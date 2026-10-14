@@ -15,34 +15,34 @@ class TemplateRenderer {
   }) {
     final String jsTitle = jsonEncode(pageTitle);
 
-    // 解析用户信息三类配置
-    final bool showAvatar = template.showAvatar;
+    // 解析用户信息三类配置 (优先读取当前宽度独立定制，若未定制则遵循模板基准配置)
+    final bool showAvatar = template.getShowAvatarForWidth(width);
     final bool avatarRound = template.avatarRound;
     final String avatarBorder = template.avatarBorderColor;
 
-    final bool showUsername = template.showUsername;
+    final bool showUsername = template.getShowUsernameForWidth(width);
     final int uSize = template.usernameFontSize > 0 ? template.usernameFontSize : usernameSize;
     final String uColor = template.usernameColor;
     final bool uBold = template.usernameBold;
 
-    final bool showOtherInfo = template.showOtherInfo;
+    final bool showOtherInfo = template.getShowOtherInfoForWidth(width);
     final int otherSize = template.otherInfoFontSize > 0 ? template.otherInfoFontSize : metaSize;
     final String otherColor = template.otherInfoColor;
 
-    final bool showFloorBadge = template.showFloorBadge;
+    final bool showFloorBadge = template.getShowFloorBadgeForWidth(width);
     final String floorColor = template.floorColor;
-    final bool showPostTime = template.showPostTime;
+    final bool showPostTime = template.getShowPostTimeForWidth(width);
     final String postTimeColor = template.postTimeColor;
 
     final String postTextColor = template.postTextColor;
     final double postLineHeight = template.postLineHeight;
-    final bool showSignature = template.showSignature;
+    final bool showSignature = template.getShowSignatureForWidth(width);
 
     final String layoutMode = template.layoutMode; // 'card', 'split', 'minimal'
     final String cardBorderColor = template.cardBorderColor;
     final int cardBorderWidth = template.cardBorderWidth;
     final int cardBorderRadius = template.getBorderRadiusForWidth(width);
-    final bool showFloorDivider = template.showFloorDivider;
+    final bool showFloorDivider = template.getShowFloorDividerForWidth(width);
     final String cardBgColor = template.cardBackgroundColor;
     final bool enableAlternateBubbleColor = template.enableAlternateBubbleColor;
     final String alternateBubbleColor = template.alternateBubbleColor;
@@ -287,19 +287,29 @@ class TemplateRenderer {
 
             header.appendChild(right);
             contentTd.insertBefore(header, contentTd.firstChild);
+
+            // 确保帖子内部的表格和消息容器 100% 撑满，不挤在左侧
+            contentTd.querySelectorAll('table, .postmessage, .t_msgfont, .t_msgfontfix, .defaultpost').forEach(function(el) {
+              el.style.width = '100%';
+              el.style.maxWidth = '100%';
+              el.style.boxSizing = 'border-box';
+            });
           });
 
         } else if (mode === 'minimal') {
-          // ====== 极简纯享模式：保持现在的样式，纯净阅读，全宽填满 ======
+          // ====== 极简纯享模式：保持扁平阅读风貌，支持头像显隐与全宽填满 ======
           tables.forEach(function(table) {
             var authorTd = table.querySelector('.postauthor');
             var contentTd = table.querySelector('.postcontent');
             if (!contentTd) return;
 
             var username = '';
+            var avatarSrc = '';
             if (authorTd) {
               var userLink = authorTd.querySelector('.postinfo a') || authorTd.querySelector('cite a') || authorTd.querySelector('a[href*="space.php"]');
               if (userLink) username = userLink.innerText.trim();
+              var imgEl = authorTd.querySelector('.avatar img');
+              if (imgEl) avatarSrc = imgEl.getAttribute('file') || imgEl.src;
             }
             if (!username && contentTd) {
               var cl = contentTd.querySelector('a[href*="space.php"]');
@@ -328,6 +338,7 @@ class TemplateRenderer {
 
             table.style.width = '100%';
             table.style.maxWidth = '100%';
+            table.style.minWidth = '100%';
             table.style.display = 'block';
             table.style.margin = '0';
             table.style.border = 'none';
@@ -338,6 +349,7 @@ class TemplateRenderer {
             contentTd.style.display = 'block';
             contentTd.style.width = '100%';
             contentTd.style.maxWidth = '100%';
+            contentTd.style.minWidth = '100%';
             contentTd.style.padding = '0';
             contentTd.style.boxSizing = 'border-box';
 
@@ -347,10 +359,34 @@ class TemplateRenderer {
             var header = document.createElement('div');
             header.className = 'd2pdf-custom-header';
             header.style.cssText = 'display: flex !important; align-items: center !important; justify-content: space-between !important; ' +
-              'padding: 6px 12px 2px 12px !important; width: 100% !important; box-sizing: border-box !important; background: #ffffff !important;';
+              'padding: 8px 12px 4px 12px !important; width: 100% !important; box-sizing: border-box !important; background: #ffffff !important; ' +
+              'border-bottom: ${showFloorDivider ? "1px solid #e5e7eb" : "none"} !important;';
 
             var left = document.createElement('div');
-            left.style.cssText = 'display: flex !important; align-items: center !important; gap: 8px !important;';
+            left.style.cssText = 'display: flex !important; align-items: center !important; gap: 8px !important; flex: 1 !important; min-width: 0 !important;';
+
+            var effectiveAvatarSize = $effectiveAvatarSize;
+
+            if ($showAvatar) {
+              if (avatarSrc) {
+                var img = document.createElement('img');
+                img.src = avatarSrc;
+                img.className = 'd2pdf-avatar-img';
+                img.style.cssText = 'width: ' + effectiveAvatarSize + 'px !important; height: ' + effectiveAvatarSize + 'px !important; min-width: ' + effectiveAvatarSize + 'px !important; ' +
+                  'border-radius: ${avatarRound ? "50%" : "4px"} !important; object-fit: cover !important; display: block !important; ' +
+                  'border: 1px solid $avatarBorder !important; flex-shrink: 0 !important;';
+                left.appendChild(img);
+              } else {
+                var placeholder = document.createElement('div');
+                placeholder.className = 'd2pdf-avatar-placeholder';
+                placeholder.style.cssText = 'width: ' + effectiveAvatarSize + 'px !important; height: ' + effectiveAvatarSize + 'px !important; min-width: ' + effectiveAvatarSize + 'px !important; ' +
+                  'border-radius: ${avatarRound ? "50%" : "4px"} !important; background: #e0e7ff !important; color: #3730a3 !important; ' +
+                  'display: flex !important; align-items: center !important; justify-content: center !important; font-weight: bold !important; font-size: ${uSize}px !important; flex-shrink: 0 !important;';
+                placeholder.innerText = username ? username.substring(0, 1).toUpperCase() : '?';
+                left.appendChild(placeholder);
+              }
+            }
+
             if ($showUsername && username) {
               var name = document.createElement('span');
               name.style.cssText = 'font-weight: bold !important; font-size: ${uSize}px !important; color: $uColor !important;';
@@ -360,7 +396,7 @@ class TemplateRenderer {
             header.appendChild(left);
 
             var right = document.createElement('div');
-            right.style.cssText = 'display: flex !important; align-items: center !important; gap: 8px !important;';
+            right.style.cssText = 'display: flex !important; align-items: center !important; gap: 8px !important; flex-shrink: 0 !important;';
             if ($showPostTime && postTime) {
               var timeSpan = document.createElement('span');
               timeSpan.style.cssText = 'color: $postTimeColor !important; font-size: ${metaSize}px !important;';
@@ -375,6 +411,13 @@ class TemplateRenderer {
             }
             header.appendChild(right);
             contentTd.insertBefore(header, contentTd.firstChild);
+
+            // 确保帖子内部的表格和消息容器 100% 撑满，不挤在左侧
+            contentTd.querySelectorAll('table, .postmessage, .t_msgfont, .t_msgfontfix, .defaultpost').forEach(function(el) {
+              el.style.width = '100%';
+              el.style.maxWidth = '100%';
+              el.style.boxSizing = 'border-box';
+            });
           });
 
         } else if (mode === 'split') {
@@ -486,7 +529,7 @@ class TemplateRenderer {
             max-width: ${isPreview ? "100%" : "${width}px"} !important;
             overflow-x: hidden !important;
           }
-          #wrap, .wrap, .main, .content, #postlist {
+          #wrap, .wrap, .main, .content, #postlist, div[id^="post_"] {
             text-align: left !important;
             width: 100% !important;
             max-width: 100% !important;
@@ -503,17 +546,49 @@ class TemplateRenderer {
             width: 100% !important;
             max-width: 100% !important;
             min-width: 100% !important;
+            display: block !important;
             margin: 0 0 10px 0 !important;
             padding: 0 !important;
             box-sizing: border-box !important;
           }
-          .postmessage, .t_msgfont, .t_msgfontfix {
-            padding: 8px 12px 12px 12px !important;
+          table.viewthread > tbody, table[id^="pid"] > tbody,
+          table.viewthread > tbody > tr, table[id^="pid"] > tbody > tr,
+          table.viewthread td.postcontent, table[id^="pid"] td.postcontent,
+          .postcontent, td.postcontent {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
             box-sizing: border-box !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+          }
+          .defaultpost, .postmessage, .t_msgfontfix {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .postmessage table, .t_msgfontfix table {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            box-sizing: border-box !important;
+            table-layout: auto !important;
+          }
+          .postmessage, .t_msgfont, .t_msgfontfix, .t_msgfont td {
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            padding: 8px 12px 12px 12px !important;
             background: transparent !important;
             font-size: ${fontSize}px !important;
             line-height: $postLineHeight !important;
             color: $postTextColor !important;
+            word-break: break-word !important;
+            word-wrap: break-word !important;
           }
           ''' : (layoutMode == 'minimal' ? '''
           .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
@@ -521,6 +596,7 @@ class TemplateRenderer {
             width: 100% !important;
             max-width: 100% !important;
             min-width: 100% !important;
+            display: block !important;
             margin: 0 !important;
             padding: 0 !important;
             border: none !important;
@@ -528,12 +604,43 @@ class TemplateRenderer {
             box-sizing: border-box !important;
             background: #ffffff !important;
           }
-          .postmessage, .t_msgfont, .t_msgfontfix {
-            padding: 8px 12px 12px 12px !important;
+          table.viewthread > tbody, table[id^="pid"] > tbody,
+          table.viewthread > tbody > tr, table[id^="pid"] > tbody > tr,
+          table.viewthread td.postcontent, table[id^="pid"] td.postcontent,
+          .postcontent, td.postcontent {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
             box-sizing: border-box !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+          }
+          .defaultpost, .postmessage, .t_msgfontfix {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .postmessage table, .t_msgfontfix table {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            box-sizing: border-box !important;
+            table-layout: auto !important;
+          }
+          .postmessage, .t_msgfont, .t_msgfontfix, .t_msgfont td {
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            padding: 8px 12px 12px 12px !important;
             font-size: ${fontSize}px !important;
             line-height: $postLineHeight !important;
             color: $postTextColor !important;
+            word-break: break-word !important;
+            word-wrap: break-word !important;
           }
           ''' : '''
           .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {

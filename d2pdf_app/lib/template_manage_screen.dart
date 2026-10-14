@@ -708,256 +708,290 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TextField(
-              controller: _nameController,
-              decoration: const InputDecoration(labelText: '模板名称', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _descController,
-              decoration: const InputDecoration(labelText: '模板描述', border: OutlineInputBorder()),
-            ),
-            const SizedBox(height: 16),
-
-            // 宽度设定与微调条
-            _buildWidthBar(),
-
-            const SizedBox(height: 16),
-
-            // 所见即所得卡片模拟预览 (点击文字直接修改)
-            const Text(
-              '💡 交互式预览（点击下方各个元素直接修改颜色/大小/显隐）：',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF192D50)),
-            ),
-            const SizedBox(height: 8),
-            _buildInteractiveMockCard(),
-
-            const Divider(height: 28),
-
-            const Text('排版架构与模式：', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-            const SizedBox(height: 8),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'card', label: Text('现代气泡卡片')),
-                ButtonSegment(value: 'split', label: Text('经典左右分栏')),
-                ButtonSegment(value: 'minimal', label: Text('极简纯享')),
+      body: Column(
+        children: [
+          // 顶部固定展示区 (Sticky Header: 宽度条 + 实时所见即所得预览，向下滚动时不被顶出窗口)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
+                ),
               ],
-              selected: {_current.layoutMode},
-              onSelectionChanged: (val) {
-                setState(() => _current.layoutMode = val.first);
-              },
             ),
-
-            if (_current.layoutMode == 'card') ...[
-              const Divider(height: 24),
-              const Text('气泡卡片样式与背景设置：', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              const SizedBox(height: 4),
-
-              // 气泡主颜色
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: Color(int.parse(_current.cardBackgroundColor.replaceFirst('#', '0xFF'))),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.grey.shade400),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildWidthBar(),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.visibility_outlined, size: 14, color: Color(0xFF192D50)),
+                          const SizedBox(width: 4),
+                          Text(
+                            '实时预览 (${_editingWidth}px 布局 · 点击元素可快捷调整):',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF192D50)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 180),
+                        child: SingleChildScrollView(
+                          child: _buildInteractiveMockCard(),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                title: const Text('气泡主颜色 (单数楼层)'),
-                subtitle: Text(_current.cardBackgroundColor),
-                trailing: const Icon(Icons.color_lens, size: 20),
-                onTap: () => _showColorPickerSheet(
-                  '气泡主颜色',
-                  _current.cardBackgroundColor,
-                  (c) => setState(() => _current.cardBackgroundColor = c),
-                ),
-              ),
+              ],
+            ),
+          ),
 
-              // 交替双色开关
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('开启气泡交替双色'),
-                subtitle: const Text('偶数楼层显示交替副颜色，增强阅读层次'),
-                value: _current.enableAlternateBubbleColor,
-                onChanged: (val) => setState(() => _current.enableAlternateBubbleColor = val),
-              ),
+          // 下方滚动配置区 (用户任意向下滚动，顶部的预览窗口始终固定在最上方)
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              children: [
+                TextField(
+                  controller: _nameController,
+                  decoration: const InputDecoration(labelText: '模板名称', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _descController,
+                  decoration: const InputDecoration(labelText: '模板描述', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 16),
 
-              // 气泡副颜色
-              if (_current.enableAlternateBubbleColor)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Container(
-                    width: 24,
-                    height: 24,
-                    decoration: BoxDecoration(
-                      color: Color(int.parse(_current.alternateBubbleColor.replaceFirst('#', '0xFF'))),
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.grey.shade400),
-                    ),
-                  ),
-                  title: const Text('气泡交替副颜色 (双数楼层)'),
-                  subtitle: Text(_current.alternateBubbleColor),
-                  trailing: const Icon(Icons.color_lens, size: 20),
-                  onTap: () => _showColorPickerSheet(
-                    '气泡交替副颜色',
-                    _current.alternateBubbleColor,
-                    (c) => setState(() => _current.alternateBubbleColor = c),
-                  ),
-                ),
-
-              // 页面底色背景
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: Color(int.parse(_current.pageBackgroundColor.replaceFirst('#', '0xFF'))),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.grey.shade400),
-                  ),
-                ),
-                title: const Text('页面背景底色'),
-                subtitle: Text(_current.pageBackgroundColor),
-                trailing: const Icon(Icons.color_lens, size: 20),
-                onTap: () => _showColorPickerSheet(
-                  '页面背景底色',
-                  _current.pageBackgroundColor,
-                  (c) => setState(() => _current.pageBackgroundColor = c),
-                ),
-              ),
-
-              // 气泡边框粗细与颜色
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: Color(int.parse(_current.cardBorderColor.replaceFirst('#', '0xFF'))),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.grey.shade400),
-                  ),
-                ),
-                title: const Text('气泡边框颜色'),
-                subtitle: Text(_current.cardBorderColor),
-                trailing: const Icon(Icons.color_lens, size: 20),
-                onTap: () => _showColorPickerSheet(
-                  '气泡边框颜色',
-                  _current.cardBorderColor,
-                  (c) => setState(() => _current.cardBorderColor = c),
-                ),
-              ),
-
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: Row(
-                  children: [
-                    const Text('边框大小: '),
-                    const SizedBox(width: 8),
-                    SegmentedButton<int>(
-                      segments: const [
-                        ButtonSegment(value: 0, label: Text('无边框')),
-                        ButtonSegment(value: 1, label: Text('1px')),
-                        ButtonSegment(value: 2, label: Text('2px')),
-                        ButtonSegment(value: 3, label: Text('3px')),
-                      ],
-                      selected: {_current.cardBorderWidth},
-                      onSelectionChanged: (val) => setState(() => _current.cardBorderWidth = val.first),
-                    ),
+                const Text('排版架构与模式：', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                const SizedBox(height: 8),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'card', label: Text('现代气泡卡片')),
+                    ButtonSegment(value: 'split', label: Text('经典左右分栏')),
+                    ButtonSegment(value: 'minimal', label: Text('极简纯享')),
                   ],
+                  selected: {_current.layoutMode},
+                  onSelectionChanged: (val) {
+                    setState(() => _current.layoutMode = val.first);
+                  },
                 ),
-              ),
-            ],
 
-            const SizedBox(height: 16),
-            const Text('用户信息三要素设置：', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-            SwitchListTile(
-              title: const Text('1. 头像 (Avatar)'),
-              subtitle: Text('尺寸: ${_current.avatarSize}px · ${_current.avatarRound ? "圆形" : "圆角方形"}'),
-              value: _current.showAvatar,
-              onChanged: (val) => setState(() => _current.showAvatar = val),
-            ),
-            if (_current.showAvatar)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    const Text('圆角:'),
-                    Switch(
-                      value: _current.avatarRound,
-                      onChanged: (v) => setState(() => _current.avatarRound = v),
-                    ),
-                    const SizedBox(width: 16),
-                    Text('边框: ${_current.avatarBorderColor}'),
-                    IconButton(
-                      icon: const Icon(Icons.color_lens, size: 18),
-                      onPressed: () => _showColorPickerSheet(
-                        '头像边框',
-                        _current.avatarBorderColor,
-                        (c) => setState(() => _current.avatarBorderColor = c),
+                if (_current.layoutMode == 'card') ...[
+                  const Divider(height: 24),
+                  const Text('气泡卡片样式与背景设置：', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  const SizedBox(height: 4),
+
+                  // 气泡主颜色
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Color(int.parse(_current.cardBackgroundColor.replaceFirst('#', '0xFF'))),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.grey.shade400),
                       ),
                     ),
-                  ],
+                    title: const Text('气泡主颜色 (单数楼层)'),
+                    subtitle: Text(_current.cardBackgroundColor),
+                    trailing: const Icon(Icons.color_lens, size: 20),
+                    onTap: () => _showColorPickerSheet(
+                      '气泡主颜色',
+                      _current.cardBackgroundColor,
+                      (c) => setState(() => _current.cardBackgroundColor = c),
+                    ),
+                  ),
+
+                  // 交替双色开关
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('开启气泡交替双色'),
+                    subtitle: const Text('偶数楼层显示交替副颜色，增强阅读层次'),
+                    value: _current.enableAlternateBubbleColor,
+                    onChanged: (val) => setState(() => _current.enableAlternateBubbleColor = val),
+                  ),
+
+                  // 气泡副颜色
+                  if (_current.enableAlternateBubbleColor)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: Color(int.parse(_current.alternateBubbleColor.replaceFirst('#', '0xFF'))),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.grey.shade400),
+                        ),
+                      ),
+                      title: const Text('气泡交替副颜色 (双数楼层)'),
+                      subtitle: Text(_current.alternateBubbleColor),
+                      trailing: const Icon(Icons.color_lens, size: 20),
+                      onTap: () => _showColorPickerSheet(
+                        '气泡交替副颜色',
+                        _current.alternateBubbleColor,
+                        (c) => setState(() => _current.alternateBubbleColor = c),
+                      ),
+                    ),
+
+                  // 页面底色背景
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Color(int.parse(_current.pageBackgroundColor.replaceFirst('#', '0xFF'))),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.grey.shade400),
+                      ),
+                    ),
+                    title: const Text('页面背景底色'),
+                    subtitle: Text(_current.pageBackgroundColor),
+                    trailing: const Icon(Icons.color_lens, size: 20),
+                    onTap: () => _showColorPickerSheet(
+                      '页面背景底色',
+                      _current.pageBackgroundColor,
+                      (c) => setState(() => _current.pageBackgroundColor = c),
+                    ),
+                  ),
+
+                  // 气泡边框粗细与颜色
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: Color(int.parse(_current.cardBorderColor.replaceFirst('#', '0xFF'))),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.grey.shade400),
+                      ),
+                    ),
+                    title: const Text('气泡边框颜色'),
+                    subtitle: Text(_current.cardBorderColor),
+                    trailing: const Icon(Icons.color_lens, size: 20),
+                    onTap: () => _showColorPickerSheet(
+                      '边框颜色',
+                      _current.cardBorderColor,
+                      (c) => setState(() => _current.cardBorderColor = c),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        const Text('边框大小:'),
+                        const SizedBox(width: 12),
+                        SegmentedButton<int>(
+                          segments: const [
+                            ButtonSegment(value: 0, label: Text('无')),
+                            ButtonSegment(value: 1, label: Text('1px')),
+                            ButtonSegment(value: 2, label: Text('2px')),
+                            ButtonSegment(value: 3, label: Text('3px')),
+                          ],
+                          selected: {_current.cardBorderWidth},
+                          onSelectionChanged: (val) => setState(() => _current.cardBorderWidth = val.first),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+                const Text('用户信息三要素设置：', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                SwitchListTile(
+                  title: const Text('1. 头像 (Avatar)'),
+                  subtitle: Text('通用基准尺寸: ${_current.avatarSize}px · ${_current.avatarRound ? "圆形" : "圆角方形"}'),
+                  value: _current.showAvatar,
+                  onChanged: (val) => setState(() => _current.showAvatar = val),
                 ),
-              ),
+                if (_current.showAvatar)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        const Text('圆角:'),
+                        Switch(
+                          value: _current.avatarRound,
+                          onChanged: (v) => setState(() => _current.avatarRound = v),
+                        ),
+                        const SizedBox(width: 16),
+                        Text('边框: ${_current.avatarBorderColor}'),
+                        IconButton(
+                          icon: const Icon(Icons.color_lens, size: 18),
+                          onPressed: () => _showColorPickerSheet(
+                            '头像边框',
+                            _current.avatarBorderColor,
+                            (c) => setState(() => _current.avatarBorderColor = c),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
 
-            SwitchListTile(
-              title: const Text('2. 用户名 (Username)'),
-              subtitle: Text('颜色: ${_current.usernameColor} · ${_current.usernameBold ? "加粗" : "常规"}'),
-              value: _current.showUsername,
-              onChanged: (val) => setState(() => _current.showUsername = val),
-            ),
+                SwitchListTile(
+                  title: const Text('2. 用户名 (Username)'),
+                  subtitle: Text('颜色: ${_current.usernameColor} · ${_current.usernameBold ? "加粗" : "常规"}'),
+                  value: _current.showUsername,
+                  onChanged: (val) => setState(() => _current.showUsername = val),
+                ),
 
-            SwitchListTile(
-              title: const Text('3. 剩余其他信息 (等级、星级、UID、积分、注册日等)'),
-              subtitle: Text('颜色: ${_current.otherInfoColor} · 统一字号: ${_current.otherInfoFontSize == 0 ? "随系统" : "${_current.otherInfoFontSize}px"}'),
-              value: _current.showOtherInfo,
-              onChanged: (val) => setState(() => _current.showOtherInfo = val),
-            ),
+                SwitchListTile(
+                  title: const Text('3. 剩余其他信息 (等级、星级、UID、积分、注册日等)'),
+                  subtitle: Text('颜色: ${_current.otherInfoColor} · 统一字号: ${_current.otherInfoFontSize == 0 ? "随系统" : "${_current.otherInfoFontSize}px"}'),
+                  value: _current.showOtherInfo,
+                  onChanged: (val) => setState(() => _current.showOtherInfo = val),
+                ),
 
-            const Divider(height: 24),
-            const Text('楼层元数据 & 签名：', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-            SwitchListTile(
-              title: const Text('楼层序号 (楼主/沙发/2楼)'),
-              value: _current.showFloorBadge,
-              onChanged: (val) => setState(() => _current.showFloorBadge = val),
-            ),
-            SwitchListTile(
-              title: const Text('发帖时间'),
-              value: _current.showPostTime,
-              onChanged: (val) => setState(() => _current.showPostTime = val),
-            ),
-            SwitchListTile(
-              title: const Text('签名档 (Signature)'),
-              value: _current.showSignature,
-              onChanged: (val) => setState(() => _current.showSignature = val),
-            ),
-            SwitchListTile(
-              title: const Text('楼层作者下方分割线'),
-              value: _current.showFloorDivider,
-              onChanged: (val) => setState(() => _current.showFloorDivider = val),
-            ),
+                const Divider(height: 24),
+                const Text('楼层元数据 & 签名：', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                SwitchListTile(
+                  title: const Text('楼层序号 (楼主/沙发/2楼)'),
+                  value: _current.showFloorBadge,
+                  onChanged: (val) => setState(() => _current.showFloorBadge = val),
+                ),
+                SwitchListTile(
+                  title: const Text('发帖时间'),
+                  value: _current.showPostTime,
+                  onChanged: (val) => setState(() => _current.showPostTime = val),
+                ),
+                SwitchListTile(
+                  title: const Text('签名档 (Signature)'),
+                  value: _current.showSignature,
+                  onChanged: (val) => setState(() => _current.showSignature = val),
+                ),
+                SwitchListTile(
+                  title: const Text('楼层作者下方分割线'),
+                  value: _current.showFloorDivider,
+                  onChanged: (val) => setState(() => _current.showFloorDivider = val),
+                ),
 
-            const SizedBox(height: 12),
-            TextField(
-              controller: _cssController,
-              decoration: const InputDecoration(
-                labelText: '高级自定义 CSS',
-                hintText: '如：.d2pdf-custom-header { box-shadow: 0 1px 3px rgba(0,0,0,0.1); }',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 4,
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _cssController,
+                  decoration: const InputDecoration(
+                    labelText: '高级自定义 CSS',
+                    hintText: '如：.d2pdf-custom-header { box-shadow: 0 1px 3px rgba(0,0,0,0.1); }',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 4,
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -966,25 +1000,50 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     final curAvatar = _current.getAvatarSizeForWidth(_editingWidth);
     final curRadius = _current.getBorderRadiusForWidth(_editingWidth);
 
+    final showAvatar = _current.getShowAvatarForWidth(_editingWidth);
+    final showUsername = _current.getShowUsernameForWidth(_editingWidth);
+    final showOtherInfo = _current.getShowOtherInfoForWidth(_editingWidth);
+    final showFloorBadge = _current.getShowFloorBadgeForWidth(_editingWidth);
+    final showPostTime = _current.getShowPostTimeForWidth(_editingWidth);
+    final showSignature = _current.getShowSignatureForWidth(_editingWidth);
+    final showFloorDivider = _current.getShowFloorDividerForWidth(_editingWidth);
+
+    final bool hasWidthCustomization = _current.widthConfigs.containsKey(_editingWidth.toString());
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF8FAFC),
+        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.tune, size: 18, color: Color(0xFF192D50)),
-              const SizedBox(width: 6),
+              const Icon(Icons.tune, size: 16, color: Color(0xFF192D50)),
+              const SizedBox(width: 4),
               Text(
                 '排版宽度设定条 (${_editingWidth}px)',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF192D50)),
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF192D50)),
               ),
               const Spacer(),
+              if (hasWidthCustomization)
+                TextButton(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _current.widthConfigs.remove(_editingWidth.toString());
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('已恢复 ${_editingWidth}px 的设置为跟随模板默认值')),
+                    );
+                  },
+                  child: const Text('重置此宽度', style: TextStyle(fontSize: 11, color: Colors.redAccent)),
+                ),
               InkWell(
                 onTap: () {
                   setState(() => _current.defaultWidth = _editingWidth);
@@ -996,14 +1055,14 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                   children: [
                     Icon(
                       _current.defaultWidth == _editingWidth ? Icons.star : Icons.star_outline,
-                      size: 16,
+                      size: 15,
                       color: _current.defaultWidth == _editingWidth ? Colors.amber.shade800 : Colors.blueGrey,
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 2),
                     Text(
                       _current.defaultWidth == _editingWidth ? '默认宽度' : '设为默认',
                       style: TextStyle(
-                        fontSize: 12,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
                         color: _current.defaultWidth == _editingWidth ? Colors.amber.shade800 : Colors.blueGrey,
                       ),
@@ -1013,7 +1072,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -1029,12 +1088,13 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: ChoiceChip(
+                    visualDensity: VisualDensity.compact,
                     label: Text(label),
                     selected: isSel,
                     selectedColor: const Color(0xFF192D50),
                     labelStyle: TextStyle(
                       color: isSel ? Colors.white : const Color(0xFF192D50),
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
                     ),
                     onSelected: (val) {
@@ -1045,13 +1105,14 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
               }).toList(),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Row(
             children: [
-              Text('针对 ${_editingWidth}px 头像: ${curAvatar}px', style: const TextStyle(fontSize: 12)),
+              Text('针对 ${_editingWidth}px 头像: ${curAvatar}px', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
               IconButton(
                 visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.remove_circle_outline, size: 18),
+                padding: EdgeInsets.zero,
+                icon: const Icon(Icons.remove_circle_outline, size: 16),
                 onPressed: curAvatar > 20
                     ? () {
                         setState(() {
@@ -1062,7 +1123,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
               ),
               IconButton(
                 visualDensity: VisualDensity.compact,
-                icon: const Icon(Icons.add_circle_outline, size: 18),
+                padding: EdgeInsets.zero,
+                icon: const Icon(Icons.add_circle_outline, size: 16),
                 onPressed: curAvatar < 64
                     ? () {
                         setState(() {
@@ -1073,10 +1135,11 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
               ),
               const Spacer(),
               if (_current.layoutMode == 'card') ...[
-                Text('圆角: ${curRadius}px', style: const TextStyle(fontSize: 12)),
+                Text('圆角: ${curRadius}px', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                 IconButton(
                   visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.remove_circle_outline, size: 18),
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.remove_circle_outline, size: 16),
                   onPressed: curRadius > 0
                       ? () {
                           setState(() {
@@ -1087,7 +1150,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                 ),
                 IconButton(
                   visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.add_circle_outline, size: 18),
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.add_circle_outline, size: 16),
                   onPressed: curRadius < 30
                       ? () {
                           setState(() {
@@ -1099,7 +1163,55 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
               ],
             ],
           ),
+          const SizedBox(height: 4),
+          // 针对当前宽度定制元素显示（增加或减少某些元素显示）
+          Row(
+            children: [
+              Text('此宽度元素: ', style: TextStyle(fontSize: 11, color: Colors.grey.shade700, fontWeight: FontWeight.w600)),
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildElementToggleChip('头像', 'showAvatar', showAvatar),
+                      _buildElementToggleChip('用户名', 'showUsername', showUsername),
+                      _buildElementToggleChip('附加信息', 'showOtherInfo', showOtherInfo),
+                      _buildElementToggleChip('楼层', 'showFloorBadge', showFloorBadge),
+                      _buildElementToggleChip('时间', 'showPostTime', showPostTime),
+                      _buildElementToggleChip('签名', 'showSignature', showSignature),
+                      _buildElementToggleChip('分割线', 'showFloorDivider', showFloorDivider),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildElementToggleChip(String label, String key, bool isActive) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: FilterChip(
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+        label: Text(label, style: TextStyle(fontSize: 10, color: isActive ? Colors.white : Colors.black87)),
+        selected: isActive,
+        selectedColor: const Color(0xFF192D50),
+        checkmarkColor: Colors.white,
+        showCheckmark: false,
+        avatar: Icon(
+          isActive ? Icons.check_circle : Icons.remove_circle_outline,
+          size: 12,
+          color: isActive ? Colors.white : Colors.grey,
+        ),
+        onSelected: (val) {
+          setState(() {
+            _current.setElementVisibleForWidth(_editingWidth, key, val);
+          });
+        },
       ),
     );
   }
@@ -1121,6 +1233,13 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     final cardBg1 = Color(int.parse(_current.cardBackgroundColor.replaceFirst('#', '0xFF')));
     final cardBg2 = Color(int.parse((_current.enableAlternateBubbleColor ? _current.alternateBubbleColor : _current.cardBackgroundColor).replaceFirst('#', '0xFF')));
     final pageBg = Color(int.parse(_current.pageBackgroundColor.replaceFirst('#', '0xFF')));
+
+    final bool showAvatar = _current.getShowAvatarForWidth(_editingWidth);
+    final bool showUsername = _current.getShowUsernameForWidth(_editingWidth);
+    final bool showOtherInfo = _current.getShowOtherInfoForWidth(_editingWidth);
+    final bool showFloorBadge = _current.getShowFloorBadgeForWidth(_editingWidth);
+    final bool showPostTime = _current.getShowPostTimeForWidth(_editingWidth);
+    final bool showFloorDivider = _current.getShowFloorDividerForWidth(_editingWidth);
 
     return Container(
       width: double.infinity,
@@ -1171,13 +1290,13 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                   decoration: BoxDecoration(
                     border: Border(
                       bottom: BorderSide(
-                        color: _current.showFloorDivider ? Colors.black.withOpacity(0.06) : Colors.transparent,
+                        color: showFloorDivider ? Colors.black.withOpacity(0.06) : Colors.transparent,
                       ),
                     ),
                   ),
                   child: Row(
                     children: [
-                      if (_current.showAvatar)
+                      if (showAvatar)
                         InkWell(
                           onTap: () {
                             setState(() => _current.avatarRound = !_current.avatarRound);
@@ -1198,12 +1317,12 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                             child: const Text('H', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
                           ),
                         ),
-                      const SizedBox(width: 6),
+                      if (showAvatar) const SizedBox(width: 6),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (_current.showUsername)
+                            if (showUsername)
                               InkWell(
                                 onTap: () => _showColorPickerSheet('用户名', _current.usernameColor, (c) => setState(() => _current.usernameColor = c)),
                                 child: Text(
@@ -1215,7 +1334,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                                   ),
                                 ),
                               ),
-                            if (_current.showOtherInfo)
+                            if (showOtherInfo)
                               Text('金牌会员 · UID: 38294', style: TextStyle(fontSize: 10, color: Color(int.parse(_current.otherInfoColor.replaceFirst('#', '0xFF'))))),
                           ],
                         ),
@@ -1223,9 +1342,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          if (_current.showFloorBadge)
+                          if (showFloorBadge)
                             Text('1# 楼主', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(int.parse(_current.floorColor.replaceFirst('#', '0xFF'))))),
-                          if (_current.showPostTime)
+                          if (showPostTime)
                             Text('2026-10-14 09:30', style: TextStyle(fontSize: 10, color: Color(int.parse(_current.postTimeColor.replaceFirst('#', '0xFF'))))),
                         ],
                       ),
@@ -1267,7 +1386,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   child: Row(
                     children: [
-                      if (_current.showAvatar)
+                      if (showAvatar)
                         Container(
                           width: curAvatar,
                           height: curAvatar,
@@ -1279,15 +1398,20 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                           alignment: Alignment.center,
                           child: const Text('B', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
                         ),
-                      const SizedBox(width: 6),
-                      const Expanded(
-                        child: Text('沙发回复者', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                      ),
+                      if (showAvatar) const SizedBox(width: 6),
+                      if (showUsername)
+                        const Expanded(
+                          child: Text('沙发回复者', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                        )
+                      else
+                        const Spacer(),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          Text('2# 沙发', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(int.parse(_current.floorColor.replaceFirst('#', '0xFF'))))),
-                          Text('2026-10-14 09:35', style: TextStyle(fontSize: 10, color: Color(int.parse(_current.postTimeColor.replaceFirst('#', '0xFF'))))),
+                          if (showFloorBadge)
+                            Text('2# 沙发', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(int.parse(_current.floorColor.replaceFirst('#', '0xFF'))))),
+                          if (showPostTime)
+                            Text('2026-10-14 09:35', style: TextStyle(fontSize: 10, color: Color(int.parse(_current.postTimeColor.replaceFirst('#', '0xFF'))))),
                         ],
                       ),
                     ],
@@ -1315,6 +1439,13 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   }
 
   Widget _buildMinimalMock() {
+    final curAvatar = _current.getAvatarSizeForWidth(_editingWidth).toDouble().clamp(16.0, 48.0);
+    final bool showAvatar = _current.getShowAvatarForWidth(_editingWidth);
+    final bool showUsername = _current.getShowUsernameForWidth(_editingWidth);
+    final bool showPostTime = _current.getShowPostTimeForWidth(_editingWidth);
+    final bool showFloorBadge = _current.getShowFloorBadgeForWidth(_editingWidth);
+    final bool showDivider = _current.getShowFloorDividerForWidth(_editingWidth);
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -1328,29 +1459,63 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+              border: Border(
+                bottom: BorderSide(
+                  color: showDivider ? Colors.grey.shade200 : Colors.transparent,
+                ),
+              ),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                if (_current.showUsername)
-                  Text(
-                    'HelloEarth',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Color(int.parse(_current.usernameColor.replaceFirst('#', '0xFF'))),
-                    ),
-                  ),
                 Row(
                   children: [
-                    if (_current.showPostTime)
+                    if (showAvatar) ...[
+                      InkWell(
+                        onTap: () {
+                          setState(() => _current.avatarRound = !_current.avatarRound);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('已切换头像形态：${_current.avatarRound ? "圆形" : "圆角方形"}')),
+                          );
+                        },
+                        child: Container(
+                          width: curAvatar,
+                          height: curAvatar,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF192D50),
+                            shape: _current.avatarRound ? BoxShape.circle : BoxShape.rectangle,
+                            borderRadius: _current.avatarRound ? null : BorderRadius.circular(4),
+                            border: Border.all(color: Color(int.parse(_current.avatarBorderColor.replaceFirst('#', '0xFF')))),
+                          ),
+                          alignment: Alignment.center,
+                          child: const Text('H', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    if (showUsername)
+                      InkWell(
+                        onTap: () => _showColorPickerSheet('用户名', _current.usernameColor, (c) => setState(() => _current.usernameColor = c)),
+                        child: Text(
+                          'HelloEarth',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: _current.usernameBold ? FontWeight.bold : FontWeight.normal,
+                            color: Color(int.parse(_current.usernameColor.replaceFirst('#', '0xFF'))),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    if (showPostTime)
                       Text(
                         '2026-10-14 09:30',
                         style: TextStyle(fontSize: 11, color: Color(int.parse(_current.postTimeColor.replaceFirst('#', '0xFF')))),
                       ),
                     const SizedBox(width: 8),
-                    if (_current.showFloorBadge)
+                    if (showFloorBadge)
                       Text(
                         '1# 楼主',
                         style: TextStyle(
@@ -1381,6 +1546,13 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   }
 
   Widget _buildSplitMock() {
+    final curAvatar = _current.getAvatarSizeForWidth(_editingWidth).toDouble().clamp(30.0, 56.0);
+    final bool showAvatar = _current.getShowAvatarForWidth(_editingWidth);
+    final bool showUsername = _current.getShowUsernameForWidth(_editingWidth);
+    final bool showOtherInfo = _current.getShowOtherInfoForWidth(_editingWidth);
+    final bool showFloorBadge = _current.getShowFloorBadgeForWidth(_editingWidth);
+    final bool showPostTime = _current.getShowPostTimeForWidth(_editingWidth);
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1411,7 +1583,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (_current.showUsername)
+                  if (showUsername)
                     InkWell(
                       onTap: () => _showColorPickerSheet(
                         '用户名',
@@ -1427,8 +1599,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                         ),
                       ),
                     ),
-                  const SizedBox(height: 8),
-                  if (_current.showAvatar)
+                  if (showUsername && showAvatar) const SizedBox(height: 8),
+                  if (showAvatar)
                     InkWell(
                       onTap: () {
                         setState(() => _current.avatarRound = !_current.avatarRound);
@@ -1437,8 +1609,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                         );
                       },
                       child: Container(
-                        width: _current.avatarSize.toDouble().clamp(36.0, 56.0),
-                        height: _current.avatarSize.toDouble().clamp(36.0, 56.0),
+                        width: curAvatar,
+                        height: curAvatar,
                         decoration: BoxDecoration(
                           color: const Color(0xFF192D50),
                           shape: _current.avatarRound ? BoxShape.circle : BoxShape.rectangle,
@@ -1449,8 +1621,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                         child: const Text('H', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                       ),
                     ),
-                  const SizedBox(height: 8),
-                  if (_current.showOtherInfo)
+                  if (showOtherInfo) ...[
+                    const SizedBox(height: 8),
                     InkWell(
                       onTap: () => _showColorPickerSheet(
                         '其他信息',
@@ -1479,6 +1651,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                         ],
                       ),
                     ),
+                  ],
                 ],
               ),
             ),
@@ -1496,7 +1669,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        if (_current.showPostTime)
+                        if (showPostTime)
                           InkWell(
                             onTap: () => _showColorPickerSheet(
                               '发帖时间',
@@ -1513,7 +1686,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                           )
                         else
                           const SizedBox(),
-                        if (_current.showFloorBadge)
+                        if (showFloorBadge)
                           InkWell(
                             onTap: () => _showColorPickerSheet(
                               '楼层号',
