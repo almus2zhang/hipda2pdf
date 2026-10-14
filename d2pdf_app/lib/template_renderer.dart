@@ -792,11 +792,28 @@ class TemplateRenderer {
 
             var meta = extractPostMeta(table, contentTd, authorTd);
 
-            table.querySelectorAll('.postauthor, .postbottom, .postactions, tr.threadad, tr.threadsep, tr.line, td.line, .adcontent').forEach(function(el) {
+            // 安全隐藏左侧作者栏，绝不隐藏正文所在的楼层主行 tr
+            table.querySelectorAll('.postauthor').forEach(function(el) {
+              el.style.display = 'none';
+              el.style.background = 'transparent';
+            });
+            table.querySelectorAll('.postbottom, .postactions, tr.threadad, tr.threadsep, tr.line, td.line, .adcontent').forEach(function(el) {
               el.style.display = 'none';
               var r = el.closest('tr');
               if (r && (r.parentNode === table || (table.tBodies && Array.from(table.tBodies).includes(r.parentNode)))) {
                 r.style.display = 'none';
+              }
+            });
+
+            // 确保 table 内部的 tbody, tr 均为 block，铺满宽度
+            table.querySelectorAll('tbody, tr').forEach(function(el) {
+              if (el.parentNode === table || (table.tBodies && Array.from(table.tBodies).includes(el.parentNode))) {
+                if (el.style.display !== 'none') {
+                  el.style.display = 'block';
+                  el.style.width = '100%';
+                  el.style.maxWidth = '100%';
+                  el.style.boxSizing = 'border-box';
+                }
               }
             });
 
@@ -887,11 +904,28 @@ class TemplateRenderer {
 
             var meta = extractPostMeta(table, contentTd, authorTd);
 
-            table.querySelectorAll('.postauthor, .postbottom, .postactions, tr.threadad, tr.threadsep, tr.line, td.line, .adcontent').forEach(function(el) {
+            // 安全隐藏左侧作者栏，绝不隐藏正文所在的楼层主行 tr
+            table.querySelectorAll('.postauthor').forEach(function(el) {
+              el.style.display = 'none';
+              el.style.background = 'transparent';
+            });
+            table.querySelectorAll('.postbottom, .postactions, tr.threadad, tr.threadsep, tr.line, td.line, .adcontent').forEach(function(el) {
               el.style.display = 'none';
               var r = el.closest('tr');
               if (r && (r.parentNode === table || (table.tBodies && Array.from(table.tBodies).includes(r.parentNode)))) {
                 r.style.display = 'none';
+              }
+            });
+
+            // 确保 table 内部的 tbody, tr 均为 block，铺满宽度
+            table.querySelectorAll('tbody, tr').forEach(function(el) {
+              if (el.parentNode === table || (table.tBodies && Array.from(table.tBodies).includes(el.parentNode))) {
+                if (el.style.display !== 'none') {
+                  el.style.display = 'block';
+                  el.style.width = '100%';
+                  el.style.maxWidth = '100%';
+                  el.style.boxSizing = 'border-box';
+                }
               }
             });
 
@@ -984,11 +1018,28 @@ class TemplateRenderer {
 
             var meta = extractPostMeta(table, contentTd, authorTd);
 
-            table.querySelectorAll('.postauthor, .postbottom, .postactions, tr.threadad, tr.threadsep, tr.line, td.line, .adcontent').forEach(function(el) {
+            // 安全隐藏左侧作者栏，绝不隐藏正文所在的楼层主行 tr
+            table.querySelectorAll('.postauthor').forEach(function(el) {
+              el.style.display = 'none';
+              el.style.background = 'transparent';
+            });
+            table.querySelectorAll('.postbottom, .postactions, tr.threadad, tr.threadsep, tr.line, td.line, .adcontent').forEach(function(el) {
               el.style.display = 'none';
               var r = el.closest('tr');
               if (r && (r.parentNode === table || (table.tBodies && Array.from(table.tBodies).includes(r.parentNode)))) {
                 r.style.display = 'none';
+              }
+            });
+
+            // 确保 table 内部的 tbody, tr 均为 block，铺满宽度
+            table.querySelectorAll('tbody, tr').forEach(function(el) {
+              if (el.parentNode === table || (table.tBodies && Array.from(table.tBodies).includes(el.parentNode))) {
+                if (el.style.display !== 'none') {
+                  el.style.display = 'block';
+                  el.style.width = '100%';
+                  el.style.maxWidth = '100%';
+                  el.style.boxSizing = 'border-box';
+                }
               }
             });
 
@@ -1054,11 +1105,28 @@ class TemplateRenderer {
 
             var meta = extractPostMeta(table, contentTd, authorTd);
 
-            table.querySelectorAll('.postauthor, .postbottom, .postactions, tr.threadad, tr.threadsep, tr.line, td.line, .adcontent').forEach(function(el) {
+            // 安全隐藏左侧作者栏，绝不隐藏正文所在的楼层主行 tr
+            table.querySelectorAll('.postauthor').forEach(function(el) {
+              el.style.display = 'none';
+              el.style.background = 'transparent';
+            });
+            table.querySelectorAll('.postbottom, .postactions, tr.threadad, tr.threadsep, tr.line, td.line, .adcontent').forEach(function(el) {
               el.style.display = 'none';
               var r = el.closest('tr');
               if (r && (r.parentNode === table || (table.tBodies && Array.from(table.tBodies).includes(r.parentNode)))) {
                 r.style.display = 'none';
+              }
+            });
+
+            // 确保 table 内部的 tbody, tr 均为 block，铺满宽度
+            table.querySelectorAll('tbody, tr').forEach(function(el) {
+              if (el.parentNode === table || (table.tBodies && Array.from(table.tBodies).includes(el.parentNode))) {
+                if (el.style.display !== 'none') {
+                  el.style.display = 'block';
+                  el.style.width = '100%';
+                  el.style.maxWidth = '100%';
+                  el.style.boxSizing = 'border-box';
+                }
               }
             });
 
@@ -1601,13 +1669,37 @@ class TemplateRenderer {
             box-sizing: border-box !important;
           }
           .postauthor, td.postauthor { display: none !important; }
-          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line, .postbottom { display: none !important; }
+          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line, .postbottom, td.adcontent, .adcontent { display: none !important; }
+          table.viewthread > tbody, table[id^="pid"] > tbody,
+          table.viewthread > tbody > tr, table[id^="pid"] > tbody > tr,
+          table.viewthread td.postcontent, table[id^="pid"] td.postcontent,
           .postcontent, td.postcontent {
             display: block !important;
             width: 100% !important;
             max-width: 100% !important;
+            min-width: 100% !important;
             box-sizing: border-box !important;
             padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          }
+          .defaultpost, .postmessage, .t_msgfontfix {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            box-sizing: border-box !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          }
+          .postmessage table, .t_msgfontfix table {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            box-sizing: border-box !important;
+            table-layout: auto !important;
           }
           .d2pdf-magazine-header {
             background: #f8fafc !important;
@@ -1619,6 +1711,8 @@ class TemplateRenderer {
             color: $postTextColor !important;
             word-break: break-word !important;
             padding: 12px 16px 16px 16px !important;
+            visibility: visible !important;
+            opacity: 1 !important;
           }
           ''' : (layoutMode == 'timeline' ? '''
           #postlist {
@@ -1646,12 +1740,37 @@ class TemplateRenderer {
             position: relative !important;
           }
           .postauthor, td.postauthor { display: none !important; }
-          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line, .postbottom { display: none !important; }
+          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line, .postbottom, td.adcontent, .adcontent { display: none !important; }
+          table.viewthread > tbody, table[id^="pid"] > tbody,
+          table.viewthread > tbody > tr, table[id^="pid"] > tbody > tr,
+          table.viewthread td.postcontent, table[id^="pid"] td.postcontent,
           .postcontent, td.postcontent {
             display: block !important;
             width: 100% !important;
             max-width: 100% !important;
+            min-width: 100% !important;
             box-sizing: border-box !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          }
+          .defaultpost, .postmessage, .t_msgfontfix {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            box-sizing: border-box !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          }
+          .postmessage table, .t_msgfontfix table {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            box-sizing: border-box !important;
+            table-layout: auto !important;
           }
           .postmessage, .t_msgfont, .t_msgfontfix, .t_msgfont td {
             font-size: ${fontSize}px !important;
@@ -1659,6 +1778,8 @@ class TemplateRenderer {
             color: $postTextColor !important;
             word-break: break-word !important;
             padding: 8px 12px 12px 12px !important;
+            visibility: visible !important;
+            opacity: 1 !important;
           }
           ''' : (layoutMode == 'novel' ? '''
           .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
@@ -1672,12 +1793,37 @@ class TemplateRenderer {
             border-bottom: 1px dashed #d1c7b7 !important;
           }
           .postauthor, td.postauthor { display: none !important; }
-          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line, .postbottom { display: none !important; }
+          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line, .postbottom, td.adcontent, .adcontent { display: none !important; }
+          table.viewthread > tbody, table[id^="pid"] > tbody,
+          table.viewthread > tbody > tr, table[id^="pid"] > tbody > tr,
+          table.viewthread td.postcontent, table[id^="pid"] td.postcontent,
           .postcontent, td.postcontent {
             display: block !important;
             width: 100% !important;
             max-width: 100% !important;
+            min-width: 100% !important;
             box-sizing: border-box !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          }
+          .defaultpost, .postmessage, .t_msgfontfix {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            box-sizing: border-box !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          }
+          .postmessage table, .t_msgfontfix table {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            box-sizing: border-box !important;
+            table-layout: auto !important;
           }
           .d2pdf-novel-header {
             font-family: Georgia, "Noto Serif SC", "Songti SC", SimSun, serif !important;
@@ -1689,6 +1835,8 @@ class TemplateRenderer {
             word-break: break-word !important;
             padding: 12px 18px 18px 18px !important;
             font-family: Georgia, "Noto Serif SC", "Songti SC", SimSun, serif !important;
+            visibility: visible !important;
+            opacity: 1 !important;
           }
           ''' : '''
           /* 自定义/扩展核心架构通用容器规则 */
@@ -1703,12 +1851,37 @@ class TemplateRenderer {
             box-sizing: border-box !important;
           }
           .postauthor, td.postauthor { display: none !important; }
-          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line, .postbottom { display: none !important; }
+          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line, .postbottom, td.adcontent, .adcontent { display: none !important; }
+          table.viewthread > tbody, table[id^="pid"] > tbody,
+          table.viewthread > tbody > tr, table[id^="pid"] > tbody > tr,
+          table.viewthread td.postcontent, table[id^="pid"] td.postcontent,
           .postcontent, td.postcontent {
             display: block !important;
             width: 100% !important;
             max-width: 100% !important;
+            min-width: 100% !important;
             box-sizing: border-box !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: transparent !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          }
+          .defaultpost, .postmessage, .t_msgfontfix {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            box-sizing: border-box !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          }
+          .postmessage table, .t_msgfontfix table {
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 100% !important;
+            box-sizing: border-box !important;
+            table-layout: auto !important;
           }
           .postmessage, .t_msgfont, .t_msgfontfix, .t_msgfont td {
             font-size: ${fontSize}px !important;
@@ -1716,6 +1889,8 @@ class TemplateRenderer {
             color: $postTextColor !important;
             word-break: break-word !important;
             padding: 8px 12px 12px 12px !important;
+            visibility: visible !important;
+            opacity: 1 !important;
           }
           '''))))))}
 
