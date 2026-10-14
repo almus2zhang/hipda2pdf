@@ -1212,7 +1212,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                         const Spacer(),
                         Wrap(
                           spacing: 4,
-                          children: [110, 130, 140, 160].map((w) {
+                          children: [120, 140, 160, 180].map((w) {
                             final isSel = _current.splitAuthorWidth == w;
                             return ChoiceChip(
                               visualDensity: VisualDensity.compact,

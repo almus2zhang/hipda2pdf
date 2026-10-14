@@ -88,7 +88,7 @@ class LayoutTemplate {
     this.postLineHeight = 1.65,
     this.showSignature = false,
     this.layoutMode = 'card',
-    this.splitAuthorWidth = 140,
+    this.splitAuthorWidth = 160,
     this.cardBorderColor = '#e2e8f0',
     this.cardBorderWidth = 1,
     this.cardBorderRadius = 10,
@@ -155,7 +155,9 @@ class LayoutTemplate {
     if (cfg is Map && cfg['authorWidth'] != null) {
       return (cfg['authorWidth'] as num).toInt();
     }
-    if (width <= 600) return 110;
+    if (width <= 600 && splitAuthorWidth > 140) {
+      return 140;
+    }
     return splitAuthorWidth;
   }
 
@@ -277,7 +279,7 @@ class LayoutTemplate {
       postLineHeight: (json['postLineHeight'] as num?)?.toDouble() ?? 1.65,
       showSignature: json['showSignature'] ?? false,
       layoutMode: mode,
-      splitAuthorWidth: json['splitAuthorWidth'] ?? 140,
+      splitAuthorWidth: json['splitAuthorWidth'] ?? 160,
       cardBorderColor: json['cardBorderColor'] ?? '#e2e8f0',
       cardBorderWidth: json['cardBorderWidth'] ?? 1,
       cardBorderRadius: json['cardBorderRadius'] ?? 10,
@@ -442,6 +444,7 @@ class TemplateManager {
     postLineHeight: 1.7,
     showSignature: true,
     layoutMode: 'split',
+    splitAuthorWidth: 160,
     cardBorderColor: '#e2e8f0',
     cardBorderWidth: 1,
     cardBorderRadius: 0,
@@ -450,6 +453,12 @@ class TemplateManager {
     enableAlternateBubbleColor: false,
     alternateBubbleColor: '#ffffff',
     pageBackgroundColor: '#ffffff',
+    widthConfigs: {
+      '600': {'authorWidth': 140, 'avatarSize': 40},
+      '800': {'authorWidth': 160, 'avatarSize': 48},
+      '1000': {'authorWidth': 170, 'avatarSize': 52},
+      '1280': {'authorWidth': 180, 'avatarSize': 56},
+    },
   );
 
   // 3. 极简纯粹阅读

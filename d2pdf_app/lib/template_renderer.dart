@@ -524,20 +524,24 @@ class TemplateRenderer {
             document.querySelectorAll('.postauthor .avatar').forEach(function(el) { el.style.display = 'none'; });
           }
           if (!$showUsername) {
-            document.querySelectorAll('.postauthor cite').forEach(function(el) { el.style.display = 'none'; });
+            document.querySelectorAll('.postauthor cite, .postauthor .postinfo, .postauthor a[href*="uid"]').forEach(function(el) {
+              if (el.closest('.postauthor') && !el.closest('.avatar')) {
+                el.style.display = 'none';
+              }
+            });
           }
           if (!$showOtherInfo) {
-            document.querySelectorAll('.postauthor dl.profile, .postauthor ul.profile, .postauthor p, .postauthor dl').forEach(function(el) {
-              if (!el.closest('cite') && !el.closest('.avatar')) {
+            document.querySelectorAll('.postauthor dl.profile, .postauthor dl.s_clear, .postauthor p, .postauthor dl').forEach(function(el) {
+              if (!el.closest('cite') && !el.closest('.avatar') && !el.closest('.postinfo')) {
                 el.style.display = 'none';
               }
             });
           }
           if (!$showFloorBadge) {
-            document.querySelectorAll('.postinfo strong').forEach(function(el) { el.style.display = 'none'; });
+            document.querySelectorAll('td.postcontent .postinfo strong').forEach(function(el) { el.style.display = 'none'; });
           }
           if (!$showPostTime) {
-            document.querySelectorAll('.postinfo em').forEach(function(el) { el.style.display = 'none'; });
+            document.querySelectorAll('td.postcontent .postinfo em').forEach(function(el) { el.style.display = 'none'; });
           }
 
         } else if (mode === 'raw') {
@@ -804,8 +808,11 @@ class TemplateRenderer {
             padding: 0 !important;
             border: none !important;
             border-bottom: 2px solid #e2e8f0 !important; /* 经典左右分割线减为一半 */
+            border-collapse: collapse !important;
+            border-spacing: 0 !important;
             background: #ffffff !important;
             background-color: #ffffff !important;
+            table-layout: fixed !important;
           }
           /* 经典左右模式：楼层间分割线减为现在的一半 */
           tr.threadad, tr.threadad td, tr.threadad td.postauthor, tr.threadad td.adcontent {
@@ -826,18 +833,173 @@ class TemplateRenderer {
             padding: 0 !important;
             margin: 0 !important;
           }
-          .postauthor, .postauthor * {
-            text-align: left !important;
-          }
           .postauthor, td.postauthor {
             width: ${authorWidth}px !important;
             min-width: ${authorWidth}px !important;
             max-width: ${authorWidth}px !important;
-            padding: ${authorWidth <= 120 ? "4px" : "8px"} !important;
+            padding: ${authorWidth <= 130 ? "8px 6px" : "12px 10px"} !important;
+            box-sizing: border-box !important;
+            background: #f8fafc !important;
+            border-right: 1px solid #e2e8f0 !important;
+            vertical-align: top !important;
+            overflow: hidden !important;
+            word-break: break-all !important;
+          }
+          .postauthor, .postauthor * {
+            text-align: left !important;
+            box-sizing: border-box !important;
+          }
+
+          /* 消除 Discuz 原生 20px 偏右缩进，让用户名等紧贴左侧对齐 */
+          .postauthor .postinfo {
+            margin: 0 0 6px 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            min-height: unset !important;
+            line-height: 1.3 !important;
+            border-bottom: none !important;
+            background: transparent !important;
+          }
+          .postauthor .postinfo a, .postauthor cite, .postauthor cite a {
+            margin: 0 !important;
+            padding: 0 !important;
+            font-size: ${uSize}px !important;
+            color: $uColor !important;
+            font-weight: ${uBold ? 'bold' : 'normal'} !important;
+            display: inline-block !important;
+            word-break: break-all !important;
+            text-decoration: none !important;
+          }
+
+          /* 头像区域：居左并应用尺寸、边框、圆角 */
+          .postauthor .avatar {
+            margin: 4px 0 8px 0 !important;
+            padding: 0 !important;
+            width: auto !important;
+            height: auto !important;
+            text-align: left !important;
+          }
+          .postauthor .avatar a {
+            display: inline-block !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
           .postauthor .avatar img {
-            width: ${effectiveAvatarSize > 0 ? effectiveAvatarSize : (authorWidth <= 120 ? 48 : 64)}px !important;
-            height: ${effectiveAvatarSize > 0 ? effectiveAvatarSize : (authorWidth <= 120 ? 48 : 64)}px !important;
+            display: block !important;
+            width: ${effectiveAvatarSize > 0 ? effectiveAvatarSize : (authorWidth <= 130 ? 40 : 48)}px !important;
+            height: ${effectiveAvatarSize > 0 ? effectiveAvatarSize : (authorWidth <= 130 ? 40 : 48)}px !important;
+            border-radius: ${avatarRound ? '50%' : '4px'} !important;
+            border: 1px solid $avatarBorder !important;
+            box-sizing: border-box !important;
+            object-fit: cover !important;
+            margin: 0 !important;
+          }
+
+          /* 用户组头衔（如：传说中的贴神？、金牌会员等）与等级星级图标 */
+          .postauthor p {
+            margin: 2px 0 4px 0 !important;
+            padding: 0 !important;
+            font-size: ${otherSize}px !important;
+            line-height: 1.4 !important;
+            color: $otherColor !important;
+            text-align: left !important;
+          }
+          .postauthor p em, .postauthor p em a, .postauthor p a {
+            font-style: normal !important;
+            font-size: ${otherSize}px !important;
+            color: $otherColor !important;
+            text-decoration: none !important;
+          }
+          .postauthor p img {
+            vertical-align: middle !important;
+            margin: 1px 1px 1px 0 !important;
+            max-width: 100% !important;
+          }
+
+          /* 核心修复：UID / 帖子 / 积分 / 注册时间列表 */
+          /* Discuz 原生是 dt(50px float) + dd(80px float) 并带有 margin-left: 20px，导致折行错位与右侧大片空白 */
+          .postauthor dl.profile, .postauthor dl.s_clear, .postauthor dl {
+            margin: 6px 0 0 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            line-height: 1.45 !important;
+          }
+          .postauthor dl dt {
+            float: left !important;
+            clear: left !important;
+            width: auto !important;
+            min-width: unset !important;
+            max-width: unset !important;
+            height: auto !important;
+            line-height: 1.45 !important;
+            margin: 0 4px 0 0 !important;
+            padding: 0 !important;
+            font-size: ${otherSize}px !important;
+            color: $otherColor !important;
+            font-family: inherit !important;
+            white-space: nowrap !important;
+          }
+          .postauthor dl dt::after {
+            content: ":";
+          }
+          .postauthor dl dd {
+            float: none !important;
+            width: auto !important;
+            min-width: unset !important;
+            max-width: unset !important;
+            height: auto !important;
+            line-height: 1.45 !important;
+            margin: 0 0 2px 0 !important;
+            padding: 0 !important;
+            font-size: ${otherSize}px !important;
+            color: $otherColor !important;
+            font-family: inherit !important;
+            word-break: break-all !important;
+          }
+
+          /* 隐藏左侧作者栏内部多余弹出面板及冗余占位 */
+          .postauthor .userinfopanel, .postauthor .popupmenu_popup, .postauthor .shadowline, .postauthor .imicons {
+            display: none !important;
+          }
+
+          /* 元素显隐控制规则 */
+          ${showAvatar ? "" : ".postauthor .avatar { display: none !important; }"}
+          ${showUsername ? "" : ".postauthor .postinfo, .postauthor cite { display: none !important; }"}
+          ${showOtherInfo ? "" : ".postauthor dl, .postauthor p { display: none !important; }"}
+          ${showFloorBadge ? "" : "td.postcontent .postinfo strong { display: none !important; }"}
+          ${showPostTime ? "" : "td.postcontent .postinfo em { display: none !important; }"}
+
+          /* 右侧正文栏与顶部信息条 */
+          td.postcontent {
+            padding: 0 !important;
+            vertical-align: top !important;
+            background: #ffffff !important;
+          }
+          td.postcontent .postinfo {
+            margin: 0 !important;
+            padding: 8px 14px !important;
+            height: auto !important;
+            min-height: 24px !important;
+            line-height: 24px !important;
+            border-bottom: 1px solid #f1f5f9 !important;
+            background: transparent !important;
+          }
+          td.postcontent .postinfo strong, td.postcontent .postinfo strong a {
+            float: right !important;
+            color: $floorColor !important;
+            font-size: ${floorSize}px !important;
+            font-weight: bold !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            text-decoration: none !important;
+          }
+          td.postcontent .postinfo em, td.postcontent .postinfo em span {
+            float: left !important;
+            color: $postTimeColor !important;
+            font-size: ${metaSize}px !important;
+            font-style: normal !important;
+            margin: 0 !important;
           }
           .postmessage, .t_msgfont, .t_msgfontfix {
             padding: 10px 14px 14px 14px !important;
@@ -845,15 +1007,6 @@ class TemplateRenderer {
             font-size: ${fontSize}px !important;
             line-height: $postLineHeight !important;
             color: $postTextColor !important;
-          }
-          .postinfo strong, .postinfo strong a {
-            font-size: ${floorSize}px !important;
-          }
-          .postinfo em, .postinfo em span {
-            font-size: ${metaSize}px !important;
-          }
-          .postauthor cite, .postauthor cite a {
-            font-size: ${uSize}px !important;
           }
           '''))}
 
