@@ -397,10 +397,10 @@ class TemplateRenderer {
             table.style.maxWidth = '100%';
             table.style.minWidth = '100%';
             table.style.display = 'block';
-            table.style.margin = '0 0 10px 0';
+            table.style.margin = '0';
             table.style.border = 'none';
-            // 楼层底部分割线与间隔与经典左右完全一致
-            table.style.borderBottom = '1px solid #e2e8f0';
+            // 楼层底部分割线与间隔与经典左右完全一致：高度 6px，颜色 #e9e9e9
+            table.style.borderBottom = '6px solid #e9e9e9';
             table.style.background = '#ffffff';
             table.style.boxSizing = 'border-box';
 
@@ -483,9 +483,10 @@ class TemplateRenderer {
           tables.forEach(function(table) {
             table.style.width = '';
             table.style.display = '';
-            table.style.margin = '0 0 10px 0';
+            table.style.margin = '0';
             table.style.border = 'none';
-            table.style.borderBottom = '1px solid #e2e8f0';
+            // 楼层底部分割线与原汁原味完全一致：高度 6px，颜色 #e9e9e9
+            table.style.borderBottom = '6px solid #e9e9e9';
             table.style.background = '';
 
             // 彻底移除多余广告栏、操作栏、底栏 tr，避免楼层之间出现半边色块或冗余空隙
@@ -607,17 +608,35 @@ class TemplateRenderer {
 
         if (navEl) {
           navEl.innerHTML = '';
+          navEl.style.textIndent = '0';
+          navEl.style.backgroundImage = 'none';
+          navEl.style.backgroundColor = '#f1f5f9';
+          navEl.style.borderBottom = '1px solid #cbd5e1';
+          navEl.style.padding = '12px 16px';
+          navEl.style.margin = '0 0 10px 0';
+          navEl.style.boxSizing = 'border-box';
+          navEl.style.width = '100%';
           var topTitleDiv = document.createElement('div');
           topTitleDiv.className = 'd2pdf-top-title';
           topTitleDiv.innerText = finalTitle;
+          topTitleDiv.style.textIndent = '0';
           navEl.appendChild(topTitleDiv);
         } else if (finalTitle) {
           var newNav = document.createElement('div');
           newNav.id = 'nav';
           newNav.className = 'nav';
+          newNav.style.textIndent = '0';
+          newNav.style.backgroundImage = 'none';
+          newNav.style.backgroundColor = '#f1f5f9';
+          newNav.style.borderBottom = '1px solid #cbd5e1';
+          newNav.style.padding = '12px 16px';
+          newNav.style.margin = '0 0 10px 0';
+          newNav.style.boxSizing = 'border-box';
+          newNav.style.width = '100%';
           var topTitleDiv = document.createElement('div');
           topTitleDiv.className = 'd2pdf-top-title';
           topTitleDiv.innerText = finalTitle;
+          topTitleDiv.style.textIndent = '0';
           newNav.appendChild(topTitleDiv);
           var wrapEl = document.getElementById('wrap') || document.querySelector('.wrap') || document.body;
           wrapEl.insertBefore(newNav, wrapEl.firstChild);
@@ -736,10 +755,10 @@ class TemplateRenderer {
             max-width: 100% !important;
             min-width: 100% !important;
             display: block !important;
-            margin: 0 0 10px 0 !important;
+            margin: 0 !important;
             padding: 0 !important;
             border: none !important;
-            border-bottom: 1px solid #e2e8f0 !important;
+            border-bottom: 6px solid #e9e9e9 !important;
             box-sizing: border-box !important;
             background: #ffffff !important;
           }
@@ -811,10 +830,10 @@ class TemplateRenderer {
             text-align: left !important;
             width: ${isPreview ? "100%" : "${width}px"} !important;
             max-width: ${isPreview ? "100%" : "${width}px"} !important;
-            margin: 0 0 10px 0 !important;
+            margin: 0 !important;
             padding: 0 !important;
             border: none !important;
-            border-bottom: 1px solid #e2e8f0 !important;
+            border-bottom: 6px solid #e9e9e9 !important;
             border-collapse: collapse !important;
             border-spacing: 0 !important;
             background: #ffffff !important;
@@ -1029,21 +1048,29 @@ class TemplateRenderer {
             height: auto !important;
             min-height: unset !important;
             line-height: 1.4 !important;
-            padding: 10px 14px 12px 14px !important;
-            margin: 0 !important;
-            background: transparent !important;
+            padding: 12px 16px 12px 16px !important;
+            margin: 0 0 10px 0 !important;
+            background: #f1f5f9 !important;
+            background-color: #f1f5f9 !important;
+            background-image: none !important;
+            text-indent: 0 !important;
             border: none !important;
+            border-bottom: 1px solid #cbd5e1 !important;
+            ${layoutMode == 'card' ? 'border-radius: 8px !important; border: 1px solid #cbd5e1 !important;' : ''}
             text-align: left !important;
+            box-sizing: border-box !important;
+            width: 100% !important;
           }
           .d2pdf-top-title, #nav .d2pdf-top-title, .nav .d2pdf-top-title {
-            font-size: 200% !important;
+            font-size: 18px !important;
             line-height: 1.4 !important;
             font-weight: bold !important;
-            color: #111827 !important;
+            color: #0f172a !important;
             text-align: left !important;
             display: block !important;
             margin: 0 !important;
             padding: 0 !important;
+            text-indent: 0 !important;
             word-break: break-word !important;
           }
           img {

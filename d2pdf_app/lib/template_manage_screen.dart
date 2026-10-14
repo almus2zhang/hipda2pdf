@@ -1627,15 +1627,44 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   }
 
   Widget _buildInteractiveMockCard() {
+    Widget card;
     if (_current.layoutMode == 'split') {
-      return _buildSplitMock();
+      card = _buildSplitMock();
     } else if (_current.layoutMode == 'minimal') {
-      return _buildMinimalMock();
+      card = _buildMinimalMock();
     } else if (_current.layoutMode == 'raw') {
-      return _buildRawMock();
+      card = _buildRawMock();
     } else {
-      return _buildBubbleCardMock();
+      card = _buildBubbleCardMock();
     }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: const Color(0xFFCBD5E1)),
+          ),
+          child: const Text(
+            '帖子标题演示示例 - Hi!PDA D2PDF',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0F172A),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        card,
+      ],
+    );
   }
 
   Widget _buildBubbleCardMock() {
@@ -1889,7 +1918,12 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade300),
+          left: BorderSide(color: Colors.grey.shade300),
+          right: BorderSide(color: Colors.grey.shade300),
+          bottom: const BorderSide(color: Color(0xFFE9E9E9), width: 6),
+        ),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Column(
@@ -2010,7 +2044,12 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border(
+          top: BorderSide(color: Colors.grey.shade300),
+          left: BorderSide(color: Colors.grey.shade300),
+          right: BorderSide(color: Colors.grey.shade300),
+          bottom: const BorderSide(color: Color(0xFFE9E9E9), width: 6),
+        ),
         borderRadius: BorderRadius.circular(4),
         boxShadow: [
           BoxShadow(
@@ -2204,9 +2243,14 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
     return Container(
       width: double.infinity,
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: const Color(0xFFD9D9D9)),
+        border: Border(
+          top: BorderSide(color: Color(0xFFD9D9D9)),
+          left: BorderSide(color: Color(0xFFD9D9D9)),
+          right: BorderSide(color: Color(0xFFD9D9D9)),
+          bottom: BorderSide(color: Color(0xFFE9E9E9), width: 6),
+        ),
         borderRadius: BorderRadius.zero,
       ),
       child: IntrinsicHeight(
