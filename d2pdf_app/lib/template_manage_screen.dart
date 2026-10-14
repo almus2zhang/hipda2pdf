@@ -245,11 +245,11 @@ class _TemplateManageScreenState extends State<TemplateManageScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   color: Colors.blueGrey.shade50,
-                  child: Row(
+                  child: const Row(
                     children: [
-                      const Icon(Icons.info_outline, size: 16, color: Color(0xFF192D50)),
-                      const SizedBox(width: 8),
-                      const Expanded(
+                      Icon(Icons.info_outline, size: 16, color: Color(0xFF192D50)),
+                      SizedBox(width: 8),
+                      Expanded(
                         child: Text(
                           '选择用于生成 PDF 的排版风格。支持通过 AI 识图/文字定制新模板，也可可视化微调。',
                           style: TextStyle(fontSize: 12, color: Colors.black87),
@@ -1032,9 +1032,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 顶部作者与楼层条
+          // 顶部作者与楼层条 (缩窄紧凑化)
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(
@@ -1054,18 +1054,18 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                       );
                     },
                     child: Container(
-                      width: _current.avatarSize.toDouble(),
-                      height: _current.avatarSize.toDouble(),
+                      width: _current.avatarSize.toDouble().clamp(24.0, 56.0),
+                      height: _current.avatarSize.toDouble().clamp(24.0, 56.0),
                       decoration: BoxDecoration(
                         color: const Color(0xFF192D50),
                         shape: _current.avatarRound ? BoxShape.circle : BoxShape.rectangle,
-                        borderRadius: _current.avatarRound ? null : BorderRadius.circular(6),
+                        borderRadius: _current.avatarRound ? null : BorderRadius.circular(4),
                       ),
                       alignment: Alignment.center,
-                      child: const Text('H', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      child: const Text('H', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
                     ),
                   ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

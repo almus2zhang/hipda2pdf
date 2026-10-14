@@ -178,7 +178,7 @@ class TemplateRenderer {
 
             table.style.width = '100%';
             table.style.display = 'block';
-            table.style.margin = '0 0 10px 0';
+            table.style.margin = '0 0 6px 0';
             table.style.border = 'none';
             table.style.background = '$cardBgColor';
 
@@ -193,29 +193,31 @@ class TemplateRenderer {
             var header = document.createElement('div');
             header.className = 'd2pdf-custom-header';
             header.style.cssText = 'display: flex !important; align-items: center !important; justify-content: space-between !important; ' +
-              'padding: 12px 14px 6px 14px !important; width: 100% !important; box-sizing: border-box !important; ' +
+              'padding: 4px 10px 2px 10px !important; width: 100% !important; box-sizing: border-box !important; ' +
               'border-top: ${showFloorDivider ? "1px solid $cardBorderColor" : "none"} !important; ' +
               'background: $cardBgColor !important;';
 
-            // 左侧：头像 + 用户名 + 剩余其他信息
+            // 左侧：头像 + 用户名 + 剩余其他信息（紧凑缩窄）
             var left = document.createElement('div');
             left.className = 'd2pdf-header-left';
-            left.style.cssText = 'display: flex !important; align-items: center !important; flex: 1 !important; min-width: 0 !important; gap: 8px !important;';
+            left.style.cssText = 'display: flex !important; align-items: center !important; flex: 1 !important; min-width: 0 !important; gap: 6px !important;';
 
-            if (${showAvatar}) {
+            var effectiveAvatarSize = ${width <= 600 && avatarSize > 32 ? 30 : avatarSize};
+
+            if ($showAvatar) {
               if (avatarSrc) {
                 var img = document.createElement('img');
                 img.src = avatarSrc;
                 img.className = 'd2pdf-avatar-img';
-                img.style.cssText = 'width: ${avatarSize}px !important; height: ${avatarSize}px !important; min-width: ${avatarSize}px !important; ' +
-                  'border-radius: ${avatarRound ? "50%" : "6px"} !important; object-fit: cover !important; display: block !important; ' +
+                img.style.cssText = 'width: ' + effectiveAvatarSize + 'px !important; height: ' + effectiveAvatarSize + 'px !important; min-width: ' + effectiveAvatarSize + 'px !important; ' +
+                  'border-radius: ${avatarRound ? "50%" : "4px"} !important; object-fit: cover !important; display: block !important; ' +
                   'border: 1px solid $avatarBorder !important;';
                 left.appendChild(img);
               } else {
                 var placeholder = document.createElement('div');
                 placeholder.className = 'd2pdf-avatar-placeholder';
-                placeholder.style.cssText = 'width: ${avatarSize}px !important; height: ${avatarSize}px !important; min-width: ${avatarSize}px !important; ' +
-                  'border-radius: ${avatarRound ? "50%" : "6px"} !important; background: #e0e7ff !important; color: #3730a3 !important; ' +
+                placeholder.style.cssText = 'width: ' + effectiveAvatarSize + 'px !important; height: ' + effectiveAvatarSize + 'px !important; min-width: ' + effectiveAvatarSize + 'px !important; ' +
+                  'border-radius: ${avatarRound ? "50%" : "4px"} !important; background: #e0e7ff !important; color: #3730a3 !important; ' +
                   'display: flex !important; align-items: center !important; justify-content: center !important; font-weight: bold !important; font-size: ${uSize}px !important;';
                 placeholder.innerText = username ? username.substring(0, 1).toUpperCase() : '?';
                 left.appendChild(placeholder);
@@ -223,21 +225,21 @@ class TemplateRenderer {
             }
 
             var userContainer = document.createElement('div');
-            userContainer.style.cssText = 'display: flex !important; flex-direction: column !important; min-width: 0 !important;';
+            userContainer.style.cssText = 'display: flex !important; flex-direction: column !important; min-width: 0 !important; line-height: 1.2 !important;';
 
-            if (${showUsername}) {
+            if ($showUsername) {
               var name = document.createElement('span');
               name.className = 'd2pdf-username-span';
               name.style.cssText = 'font-size: ${uSize}px !important; color: $uColor !important; font-weight: ${uBold ? "bold" : "normal"} !important; ' +
-                'overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important;';
+                'overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; line-height: 1.2 !important;';
               name.innerText = username || '用户';
               userContainer.appendChild(name);
             }
 
-            if (${showOtherInfo} && otherInfoHtml) {
+            if ($showOtherInfo && otherInfoHtml) {
               var otherDiv = document.createElement('div');
               otherDiv.className = 'd2pdf-other-info';
-              otherDiv.style.cssText = 'font-size: ${otherSize}px !important; color: $otherColor !important; line-height: 1.3 !important;';
+              otherDiv.style.cssText = 'font-size: ${otherSize}px !important; color: $otherColor !important; line-height: 1.2 !important;';
               otherDiv.innerHTML = otherInfoHtml;
               userContainer.appendChild(otherDiv);
             }
@@ -248,9 +250,9 @@ class TemplateRenderer {
             // 右侧：时间 + 楼层
             var right = document.createElement('div');
             right.className = 'd2pdf-header-right';
-            right.style.cssText = 'display: flex !important; align-items: center !important; gap: 8px !important; flex-shrink: 0 !important;';
+            right.style.cssText = 'display: flex !important; align-items: center !important; gap: 6px !important; flex-shrink: 0 !important;';
 
-            if (${showPostTime} && postTime) {
+            if ($showPostTime && postTime) {
               var timeSpan = document.createElement('span');
               timeSpan.className = 'd2pdf-time-span';
               timeSpan.style.cssText = 'color: $postTimeColor !important; font-size: ${metaSize}px !important; white-space: nowrap !important;';
@@ -258,7 +260,7 @@ class TemplateRenderer {
               right.appendChild(timeSpan);
             }
 
-            if (${showFloorBadge} && floorText) {
+            if ($showFloorBadge && floorText) {
               var floorSpan = document.createElement('span');
               floorSpan.className = 'd2pdf-floor-span';
               floorSpan.style.cssText = 'font-weight: bold !important; color: $floorColor !important; font-size: ${floorSize}px !important; white-space: nowrap !important;';
@@ -271,74 +273,60 @@ class TemplateRenderer {
           });
 
         } else if (mode === 'split') {
-          // ====== 经典论坛左右分栏模式：保持原汁原味 ======
+          // ====== 经典论坛左右分栏模式：完全与没加模板功能之前的原版维持一致 ======
           tables.forEach(function(table) {
+            table.style.width = '';
+            table.style.display = '';
+            table.style.margin = '';
+            table.style.border = '';
+            table.style.background = '';
+
             var authorTd = table.querySelector('.postauthor');
+            if (authorTd) {
+              authorTd.style.display = '';
+              authorTd.style.width = '';
+              authorTd.style.minWidth = '';
+              authorTd.style.maxWidth = '';
+              authorTd.style.verticalAlign = '';
+            }
+
             var contentTd = table.querySelector('.postcontent');
-            if (!contentTd) return;
-
-            // 1. 确保左侧作者栏正常展示，保持原版结构
-            if (authorTd) {
-              authorTd.style.display = 'table-cell';
-              authorTd.style.width = '160px';
-              authorTd.style.minWidth = '160px';
-              authorTd.style.maxWidth = '200px';
-              authorTd.style.verticalAlign = 'top';
-            }
             if (contentTd) {
-              contentTd.style.display = 'table-cell';
-              contentTd.style.verticalAlign = 'top';
-            }
+              contentTd.style.display = '';
+              contentTd.style.width = '';
+              contentTd.style.padding = '';
+              contentTd.style.boxSizing = '';
 
-            // 移除可能之前注入的自定义卡片头部
-            var oldHeader = contentTd.querySelector('.d2pdf-custom-header');
-            if (oldHeader) oldHeader.remove();
+              var oldHeader = contentTd.querySelector('.d2pdf-custom-header');
+              if (oldHeader) oldHeader.remove();
 
-            // 2. 原生 postinfo 保持原位显示，只隐藏“只看该作者”、“打印”等功能链接
-            var postInfo = contentTd.querySelector('.postinfo');
-            if (postInfo) {
-              postInfo.style.display = 'block';
-              postInfo.querySelectorAll('a').forEach(function(a) {
-                var txt = a.innerText ? a.innerText.trim() : '';
-                var href = a.getAttribute('href') || '';
-                if (txt.indexOf('只看该作者') !== -1 || txt.indexOf('打印') !== -1 ||
-                    txt.indexOf('发短消息') !== -1 || href.indexOf('printable') !== -1) {
-                  a.style.display = 'none';
-                }
-              });
-            }
-
-            // 3. 彻底隐藏本楼底部的功能按钮栏 (.postactions)
-            table.querySelectorAll('.postactions, .threadactions, .modact, .postbtn').forEach(function(el) {
-              el.style.display = 'none';
-            });
-
-            // 4. 用户若在编辑器中手动关闭了某些元素，则按需隐藏；默认全部保持原汁原味
-            if (authorTd) {
-              if (!${showAvatar}) {
-                authorTd.querySelectorAll('.avatar').forEach(function(el) { el.style.display = 'none'; });
-              }
-              if (!${showUsername}) {
-                authorTd.querySelectorAll('cite').forEach(function(el) { el.style.display = 'none'; });
-              }
-              if (!${showOtherInfo}) {
-                authorTd.querySelectorAll('dl.profile, ul.profile, p, dl').forEach(function(el) {
-                  if (!el.closest('cite') && !el.closest('.avatar')) {
-                    el.style.display = 'none';
-                  }
-                });
-              }
-            }
-
-            if (postInfo) {
-              if (!${showFloorBadge}) {
-                postInfo.querySelectorAll('strong').forEach(function(el) { el.style.display = 'none'; });
-              }
-              if (!${showPostTime}) {
-                postInfo.querySelectorAll('em').forEach(function(el) { el.style.display = 'none'; });
+              var postInfo = contentTd.querySelector('.postinfo');
+              if (postInfo) {
+                postInfo.style.display = '';
               }
             }
           });
+
+          // 用户在编辑器中选择关闭某些项时才执行隐藏，默认完整展现原版风貌
+          if (!$showAvatar) {
+            document.querySelectorAll('.postauthor .avatar').forEach(function(el) { el.style.display = 'none'; });
+          }
+          if (!$showUsername) {
+            document.querySelectorAll('.postauthor cite').forEach(function(el) { el.style.display = 'none'; });
+          }
+          if (!$showOtherInfo) {
+            document.querySelectorAll('.postauthor dl.profile, .postauthor ul.profile, .postauthor p, .postauthor dl').forEach(function(el) {
+              if (!el.closest('cite') && !el.closest('.avatar')) {
+                el.style.display = 'none';
+              }
+            });
+          }
+          if (!$showFloorBadge) {
+            document.querySelectorAll('.postinfo strong').forEach(function(el) { el.style.display = 'none'; });
+          }
+          if (!$showPostTime) {
+            document.querySelectorAll('.postinfo em').forEach(function(el) { el.style.display = 'none'; });
+          }
         }
 
         // 4. 处理顶部导航栏标题
@@ -413,45 +401,58 @@ class TemplateRenderer {
             box-sizing: border-box !important;
             background: #ffffff !important;
           }
+          .postmessage, .t_msgfont, .t_msgfontfix {
+            padding: 6px 10px 10px 10px !important;
+            box-sizing: border-box !important;
+            font-size: ${fontSize}px !important;
+            line-height: $postLineHeight !important;
+            color: $postTextColor !important;
+          }
           ''' : '''
           .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
             text-align: left !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            box-sizing: border-box !important;
-            table-layout: fixed !important;
-          }
-          .postauthor, td.postauthor {
-            width: 160px !important;
-            min-width: 160px !important;
-            text-align: left !important;
-            vertical-align: top !important;
+            width: ${isPreview ? "100%" : "${width}px"} !important;
+            max-width: ${isPreview ? "100%" : "${width}px"} !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            background: #ffffff !important;
+            background-color: #ffffff !important;
           }
           .postauthor, .postauthor * {
             text-align: left !important;
           }
-          .postcontent, td.postcontent {
-            vertical-align: top !important;
-            text-align: left !important;
+          ${width <= 600 ? '''
+          .postauthor, td.postauthor {
+            width: 110px !important;
+            min-width: 110px !important;
+            max-width: 120px !important;
+            padding: 4px !important;
           }
-          .postinfo {
-            display: block !important;
-            overflow: hidden !important;
-            padding: 6px 10px !important;
+          .postauthor .avatar img {
+            width: 48px !important;
+            height: 48px !important;
           }
-          .postinfo strong {
-            float: right !important;
-            font-weight: bold !important;
+          ''' : ''}
+          .postmessage, .t_msgfont, .t_msgfontfix {
+            padding: 10px 14px 14px 14px !important;
+            box-sizing: border-box !important;
+            font-size: ${fontSize}px !important;
+            line-height: $postLineHeight !important;
+            color: $postTextColor !important;
           }
-          .postinfo em {
-            float: left !important;
+          .postinfo strong, .postinfo strong a {
+            font-size: ${floorSize}px !important;
           }
-          .postactions {
-            display: none !important;
+          .postinfo em, .postinfo em span {
+            font-size: ${metaSize}px !important;
+          }
+          .postauthor cite, .postauthor cite a {
+            font-size: ${uSize}px !important;
           }
           '''}
 
-          table, tbody, tr, td, .postcontent, .postmessage, .t_msgfont, .t_msgfontfix, p, div, span, h1, h2, h3, h4 {
+          table, tbody, tr, td, .postcontent, p, div, span, h1, h2, h3, h4 {
             text-align: left !important;
           }
           #nav, .nav {
@@ -475,13 +476,6 @@ class TemplateRenderer {
             margin: 0 !important;
             padding: 0 !important;
             word-break: break-word !important;
-          }
-          .postmessage, .t_msgfont, .t_msgfontfix {
-            padding: 10px 14px 14px 14px !important;
-            box-sizing: border-box !important;
-            font-size: ${fontSize}px !important;
-            line-height: $postLineHeight !important;
-            color: $postTextColor !important;
           }
           img {
             max-width: 100% !important;

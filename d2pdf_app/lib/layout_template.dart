@@ -219,11 +219,11 @@ class TemplateManager {
   static final LayoutTemplate defaultCard = LayoutTemplate(
     id: 'builtin_card',
     name: '经典移动卡片',
-    description: '42px圆形头像，顶部用户名与时间楼层紧凑排版，支持任意宽度自适应。',
+    description: '30px紧凑头像，顶部用户名与时间楼层紧凑窄幅排版，支持任意宽度自适应。',
     defaultWidth: 600,
     isBuiltin: true,
     showAvatar: true,
-    avatarSize: 42,
+    avatarSize: 30,
     avatarRound: true,
     avatarBorderColor: '#e5e7eb',
     showUsername: true,
