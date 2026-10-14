@@ -47,6 +47,7 @@ class TemplateRenderer {
     final bool enableAlternateBubbleColor = template.enableAlternateBubbleColor;
     final String alternateBubbleColor = template.alternateBubbleColor;
     final String pageBgColor = (layoutMode == 'card') ? template.pageBackgroundColor : '#ffffff';
+    final int cardSpacing = template.getCardSpacingForWidth(width);
     final int effectiveAvatarSize = template.getAvatarSizeForWidth(width);
     final int authorWidth = template.getAuthorWidthForWidth(width);
     final String customCss = template.customCss;
@@ -102,8 +103,13 @@ class TemplateRenderer {
         });
 
         // 控制签名档显示与隐藏
-        document.querySelectorAll('.signatures').forEach(function(sig) {
+        document.querySelectorAll('.signatures, .sign, .postsignature, div[id^="signature"]').forEach(function(sig) {
           sig.style.display = ${showSignature ? "'block'" : "'none'"};
+        });
+
+        // 彻底移除底部悬浮与多余空白干扰元素
+        document.querySelectorAll('#footer, #scrolltop, #append_parent, #ajaxwaitid, .pages_btns, .pages, .popupmenu_popup').forEach(function(el) {
+          el.remove();
         });
 
         // 3. 楼层 DOM 提取与应用
@@ -179,8 +185,16 @@ class TemplateRenderer {
               postInfo.style.display = 'none';
             }
 
-            // 隐藏原有左侧栏
-            if (authorTd) authorTd.style.display = 'none';
+            // 隐藏所有多余的 tr 行，防止残留 120px 宽度的 postauthor 宽条
+            table.querySelectorAll('tr').forEach(function(tr) {
+              if (!tr.querySelector('.postcontent') && !tr.querySelector('.postmessage')) {
+                tr.style.display = 'none';
+              }
+            });
+            table.querySelectorAll('.postauthor').forEach(function(el) {
+              el.style.display = 'none';
+              el.style.background = 'transparent';
+            });
 
             // 气泡交替双色判断
             var isOddFloor = (idx % 2 === 1);
@@ -189,7 +203,7 @@ class TemplateRenderer {
             table.style.width = '100%';
             table.style.maxWidth = '100%';
             table.style.display = 'block';
-            table.style.margin = '0 0 10px 0';
+            table.style.margin = '0 0 ${cardSpacing}px 0';
             table.style.border = '${cardBorderWidth}px solid $cardBorderColor';
             table.style.borderRadius = '${cardBorderRadius}px';
             table.style.background = thisBubbleColor;
@@ -335,7 +349,16 @@ class TemplateRenderer {
               postInfo.style.display = 'none';
             }
 
-            if (authorTd) authorTd.style.display = 'none';
+            // 隐藏所有多余的 tr 行，防止残留 120px 宽度的 postauthor 宽条
+            table.querySelectorAll('tr').forEach(function(tr) {
+              if (!tr.querySelector('.postcontent') && !tr.querySelector('.postmessage')) {
+                tr.style.display = 'none';
+              }
+            });
+            table.querySelectorAll('.postauthor').forEach(function(el) {
+              el.style.display = 'none';
+              el.style.background = 'transparent';
+            });
 
             table.style.width = '100%';
             table.style.maxWidth = '100%';
@@ -343,7 +366,8 @@ class TemplateRenderer {
             table.style.display = 'block';
             table.style.margin = '0';
             table.style.border = 'none';
-            table.style.borderBottom = '1px solid #e5e7eb';
+            // 延长到全屏的楼层底部分隔宽条 (8px 全宽纯净底部分隔)
+            table.style.borderBottom = '8px solid #f1f5f9';
             table.style.background = '#ffffff';
             table.style.boxSizing = 'border-box';
 
@@ -529,6 +553,8 @@ class TemplateRenderer {
             width: ${isPreview ? "100%" : "${width}px"} !important;
             max-width: ${isPreview ? "100%" : "${width}px"} !important;
             overflow-x: hidden !important;
+            height: auto !important;
+            min-height: 0 !important;
           }
           #wrap, .wrap, .main, .content, #postlist, div[id^="post_"] {
             text-align: left !important;
@@ -539,6 +565,10 @@ class TemplateRenderer {
             padding: ${layoutMode == 'card' ? "8px 10px 14px 10px" : "0"} !important;
             box-sizing: border-box !important;
             background: transparent !important;
+            height: auto !important;
+            min-height: 0 !important;
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
           }
 
           ${layoutMode == 'card' ? '''
@@ -548,9 +578,18 @@ class TemplateRenderer {
             max-width: 100% !important;
             min-width: 100% !important;
             display: block !important;
-            margin: 0 0 10px 0 !important;
+            margin: 0 0 ${cardSpacing}px 0 !important;
             padding: 0 !important;
             box-sizing: border-box !important;
+          }
+          table.viewthread tr:not(:first-child), table[id^="pid"] tr:not(:first-child) {
+            display: none !important;
+          }
+          .postauthor, td.postauthor {
+            display: none !important;
+          }
+          .postactions, .modact, tr.threadad, tr.threadsep, td.line {
+            display: none !important;
           }
           table.viewthread > tbody, table[id^="pid"] > tbody,
           table.viewthread > tbody > tr, table[id^="pid"] > tbody > tr,
@@ -601,9 +640,18 @@ class TemplateRenderer {
             margin: 0 !important;
             padding: 0 !important;
             border: none !important;
-            border-bottom: 1px solid #e5e7eb !important;
+            border-bottom: 8px solid #f1f5f9 !important; /* 延长到全屏的楼层底部分隔宽条 */
             box-sizing: border-box !important;
             background: #ffffff !important;
+          }
+          table.viewthread tr:not(:first-child), table[id^="pid"] tr:not(:first-child) {
+            display: none !important;
+          }
+          .postauthor, td.postauthor {
+            display: none !important;
+          }
+          .postactions, .modact, tr.threadad, tr.threadsep, td.line {
+            display: none !important;
           }
           table.viewthread > tbody, table[id^="pid"] > tbody,
           table.viewthread > tbody > tr, table[id^="pid"] > tbody > tr,
@@ -713,6 +761,12 @@ class TemplateRenderer {
           img {
             max-width: 100% !important;
             height: auto !important;
+          }
+          .signatures, .sign, .postsignature, div[id^="signature"] {
+            display: ${showSignature ? "block !important" : "none !important"};
+          }
+          #footer, #scrolltop, #append_parent, #ajaxwaitid {
+            display: none !important;
           }
           $customCss
         `;

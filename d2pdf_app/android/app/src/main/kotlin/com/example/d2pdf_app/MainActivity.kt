@@ -100,8 +100,8 @@ class MainActivity: FlutterActivity() {
                 }
                 handler.postDelayed(timeoutRunnable, 45000)
 
-                val widthPx = (widthMills * 96.0 / 1000.0).toInt().coerceAtLeast(600)
-                val heightPx = (heightMills * 96.0 / 1000.0).toInt().coerceAtLeast(1080)
+                val widthPx = (widthMills * 96.0 / 1000.0).toInt().coerceAtLeast(300)
+                val heightPx = (heightMills * 96.0 / 1000.0).toInt().coerceAtLeast(300)
 
                 // Use applicationContext so WebView is independent of Activity Window lifecycle
                 val webView = WebView(applicationContext)
@@ -146,12 +146,44 @@ class MainActivity: FlutterActivity() {
                         )
                         view?.layout(0, 0, widthPx, heightPx)
 
-                        // Re-measure content height directly in this WebView to guarantee no pagination overflow
+                        // Re-measure content height directly in this WebView to eliminate long trailing blank space
                         view?.evaluateJavascript(
-                            "Math.max(document.body.scrollHeight || 0, document.documentElement.scrollHeight || 0, document.body.offsetHeight || 0);"
+                            """(function() {
+                                document.documentElement.style.height = 'auto';
+                                document.documentElement.style.minHeight = '0';
+                                document.body.style.height = 'auto';
+                                document.body.style.minHeight = '0';
+                                document.body.style.paddingBottom = '0';
+                                document.body.style.marginBottom = '0';
+                                var wrap = document.getElementById('wrap') || document.querySelector('.wrap');
+                                if (wrap) {
+                                    wrap.style.height = 'auto';
+                                    wrap.style.minHeight = '0';
+                                    wrap.style.paddingBottom = '0';
+                                    wrap.style.marginBottom = '0';
+                                }
+                                var postlist = document.getElementById('postlist');
+                                var bottomY = 0;
+                                if (postlist) {
+                                    var rect = postlist.getBoundingClientRect();
+                                    var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+                                    bottomY = rect.bottom + scrollY;
+                                    var tables = postlist.querySelectorAll('table[id^="pid"], table.viewthread, .viewthread');
+                                    if (tables.length > 0) {
+                                        var last = tables[tables.length - 1];
+                                        var r = last.getBoundingClientRect();
+                                        var b = r.bottom + scrollY;
+                                        if (b > bottomY) bottomY = b;
+                                    }
+                                }
+                                if (bottomY <= 0) {
+                                    bottomY = Math.max(document.body.scrollHeight || 0, document.documentElement.scrollHeight || 0);
+                                }
+                                return Math.ceil(bottomY + 16);
+                            })();"""
                         ) { measuredHeightStr ->
                             val measured = measuredHeightStr?.replace("\"", "")?.toDoubleOrNull()?.toInt() ?: heightPx
-                            val finalHeightPx = Math.max(heightPx, measured + 40)
+                            val finalHeightPx = Math.max(measured, heightPx)
                             val finalHeightMills = (finalHeightPx * 1000.0 / 96.0).toInt()
 
                             // IMPORTANT: Use handler.postDelayed (main looper), NOT view?.postDelayed!

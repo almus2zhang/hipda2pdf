@@ -871,19 +871,46 @@ class _MainScreenState extends State<MainScreen> {
 
         await Future.delayed(const Duration(milliseconds: 500));
 
-        // Measure page height
+        // Measure exact content height without trailing blank space
         final heightVal = await controller.evaluateJavascript(source: """
-          Math.max(
-            document.body.scrollHeight || 0,
-            document.documentElement.scrollHeight || 0,
-            document.body.offsetHeight || 0,
-            1080
-          );
+          (function() {
+            document.documentElement.style.height = 'auto';
+            document.documentElement.style.minHeight = '0';
+            document.body.style.height = 'auto';
+            document.body.style.minHeight = '0';
+            document.body.style.paddingBottom = '0';
+            document.body.style.marginBottom = '0';
+            var wrap = document.getElementById('wrap') || document.querySelector('.wrap');
+            if (wrap) {
+              wrap.style.height = 'auto';
+              wrap.style.minHeight = '0';
+              wrap.style.paddingBottom = '0';
+              wrap.style.marginBottom = '0';
+            }
+            var postlist = document.getElementById('postlist');
+            var bottomY = 0;
+            if (postlist) {
+              var rect = postlist.getBoundingClientRect();
+              var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+              bottomY = rect.bottom + scrollY;
+              var tables = postlist.querySelectorAll('table[id^="pid"], table.viewthread, .viewthread');
+              if (tables.length > 0) {
+                var last = tables[tables.length - 1];
+                var r = last.getBoundingClientRect();
+                var b = r.bottom + scrollY;
+                if (b > bottomY) bottomY = b;
+              }
+            }
+            if (bottomY <= 0) {
+              bottomY = Math.max(document.body.scrollHeight || 0, document.documentElement.scrollHeight || 0);
+            }
+            return Math.ceil(bottomY + 16);
+          })();
         """);
         final double rawHeight = (heightVal is num)
             ? heightVal.toDouble()
-            : double.tryParse(heightVal?.toString() ?? '1080') ?? 1080.0;
-        final double contentHeight = rawHeight + 40.0;
+            : double.tryParse(heightVal?.toString() ?? '600') ?? 600.0;
+        final double contentHeight = rawHeight;
 
         setState(() {
           _conversionStatus = '正在提取第 $page / $totalPages 页样式与排版...';

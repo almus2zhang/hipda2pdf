@@ -997,6 +997,45 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                       ],
                     ),
                   ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        const Text('气泡间距:'),
+                        const SizedBox(width: 8),
+                        Text('${_current.cardSpacing}px', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(Icons.remove_circle_outline, size: 18),
+                          onPressed: _current.cardSpacing > 2
+                              ? () => setState(() => _current.cardSpacing -= 2)
+                              : null,
+                        ),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(Icons.add_circle_outline, size: 18),
+                          onPressed: _current.cardSpacing < 30
+                              ? () => setState(() => _current.cardSpacing += 2)
+                              : null,
+                        ),
+                        const Spacer(),
+                        Wrap(
+                          spacing: 4,
+                          children: [6, 8, 10, 14, 18].map((s) {
+                            final isSel = _current.cardSpacing == s;
+                            return ChoiceChip(
+                              visualDensity: VisualDensity.compact,
+                              label: Text('${s}px', style: const TextStyle(fontSize: 10)),
+                              selected: isSel,
+                              onSelected: (val) {
+                                if (val) setState(() => _current.cardSpacing = s);
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
 
                 if (_current.layoutMode == 'split') ...[
@@ -1134,6 +1173,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   Widget _buildWidthBar() {
     final curAvatar = _current.getAvatarSizeForWidth(_editingWidth);
     final curRadius = _current.getBorderRadiusForWidth(_editingWidth);
+    final curSpacing = _current.getCardSpacingForWidth(_editingWidth);
     final curAuthorWidth = _current.getAuthorWidthForWidth(_editingWidth);
 
     final showAvatar = _current.getShowAvatarForWidth(_editingWidth);
@@ -1319,6 +1359,24 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                           : null,
                     ),
                   ],
+                  const SizedBox(width: 8),
+                  Text('间距: ${curSpacing}px', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.remove_circle_outline, size: 16),
+                    onPressed: curSpacing > 2
+                        ? () => setState(() => _current.setWidthConfig(_editingWidth, 'cardSpacing', curSpacing - 2))
+                        : null,
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.add_circle_outline, size: 16),
+                    onPressed: curSpacing < 30
+                        ? () => setState(() => _current.setWidthConfig(_editingWidth, 'cardSpacing', curSpacing + 2))
+                        : null,
+                  ),
                 ],
                 if (_current.layoutMode == 'split') ...[
                   Text('左栏宽: ${curAuthorWidth}px', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
@@ -1408,6 +1466,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   Widget _buildBubbleCardMock() {
     final curAvatar = _current.getAvatarSizeForWidth(_editingWidth).toDouble().clamp(20.0, 56.0);
     final curRadius = _current.getBorderRadiusForWidth(_editingWidth).toDouble();
+    final curSpacing = _current.getCardSpacingForWidth(_editingWidth).toDouble();
     final borderColor = Color(int.parse(_current.cardBorderColor.replaceFirst('#', '0xFF')));
     final cardBg1 = Color(int.parse(_current.cardBackgroundColor.replaceFirst('#', '0xFF')));
     final cardBg2 = Color(int.parse((_current.enableAlternateBubbleColor ? _current.alternateBubbleColor : _current.cardBackgroundColor).replaceFirst('#', '0xFF')));
@@ -1419,6 +1478,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     final bool showFloorBadge = _current.getShowFloorBadgeForWidth(_editingWidth);
     final bool showPostTime = _current.getShowPostTimeForWidth(_editingWidth);
     final bool showFloorDivider = _current.getShowFloorDividerForWidth(_editingWidth);
+    final bool showSignature = _current.getShowSignatureForWidth(_editingWidth);
 
     return Container(
       width: double.infinity,
@@ -1541,11 +1601,23 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                     ),
                   ),
                 ),
+                if (showSignature)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      border: Border(top: BorderSide(color: Colors.black.withOpacity(0.06))),
+                    ),
+                    child: const Text(
+                      '—— 个性签名档：越过山丘，才发现无人等候',
+                      style: TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic),
+                    ),
+                  ),
               ],
             ),
           ),
 
-          const SizedBox(height: 8),
+          SizedBox(height: curSpacing),
 
           // 气泡 2 (沙发 - 展现交替双色)
           Container(
@@ -1609,6 +1681,18 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                     ),
                   ),
                 ),
+                if (showSignature)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      border: Border(top: BorderSide(color: Colors.black.withOpacity(0.06))),
+                    ),
+                    child: const Text(
+                      '—— 原汁原味个性签名档',
+                      style: TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -1624,6 +1708,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     final bool showPostTime = _current.getShowPostTimeForWidth(_editingWidth);
     final bool showFloorBadge = _current.getShowFloorBadgeForWidth(_editingWidth);
     final bool showDivider = _current.getShowFloorDividerForWidth(_editingWidth);
+    final bool showSignature = _current.getShowSignatureForWidth(_editingWidth);
 
     return Container(
       width: double.infinity,
@@ -1719,6 +1804,24 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
               ),
             ),
           ),
+          if (showSignature)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: Colors.grey.shade200)),
+              ),
+              child: const Text(
+                '—— 原汁原味个性签名档',
+                style: TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic),
+              ),
+            ),
+          // 延长到全屏的楼层底部分隔宽条 (全屏宽度 8px 分隔带)
+          Container(
+            height: 8,
+            width: double.infinity,
+            color: const Color(0xFFF1F5F9),
+          ),
         ],
       ),
     );
@@ -1732,6 +1835,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     final bool showOtherInfo = _current.getShowOtherInfoForWidth(_editingWidth);
     final bool showFloorBadge = _current.getShowFloorBadgeForWidth(_editingWidth);
     final bool showPostTime = _current.getShowPostTimeForWidth(_editingWidth);
+    final bool showSignature = _current.getShowSignatureForWidth(_editingWidth);
 
     return Container(
       width: double.infinity,
@@ -1898,7 +2002,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                     ),
                   ),
                   const Spacer(),
-                  if (_current.showSignature)
+                  if (showSignature)
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

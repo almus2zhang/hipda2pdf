@@ -49,6 +49,7 @@ class LayoutTemplate {
   String cardBorderColor; // 如 "#e2e8f0"
   int cardBorderWidth; // 气泡边框粗细，如 1px (0 为无边框)
   int cardBorderRadius; // 气泡圆角大小，如 10px (0 为直角)
+  int cardSpacing; // 气泡之间的纵向间距，如 10px
   bool showFloorDivider; // 楼层内作者与正文间微弱分割线
   String cardBackgroundColor; // 气泡主颜色，如 "#ffffff"
   bool enableAlternateBubbleColor; // 是否启用气泡交替双色
@@ -90,6 +91,7 @@ class LayoutTemplate {
     this.cardBorderColor = '#e2e8f0',
     this.cardBorderWidth = 1,
     this.cardBorderRadius = 10,
+    this.cardSpacing = 10,
     this.showFloorDivider = false,
     this.cardBackgroundColor = '#ffffff',
     this.enableAlternateBubbleColor = false,
@@ -116,6 +118,15 @@ class LayoutTemplate {
       return (cfg['borderRadius'] as num).toInt();
     }
     return cardBorderRadius;
+  }
+
+  /// 获取指定宽度下的气泡卡片纵向间距
+  int getCardSpacingForWidth(int width) {
+    final cfg = widthConfigs[width.toString()];
+    if (cfg is Map && cfg['cardSpacing'] != null) {
+      return (cfg['cardSpacing'] as num).toInt();
+    }
+    return cardSpacing;
   }
 
   /// 获取指定宽度下的经典左右分栏作者栏宽度
@@ -209,6 +220,7 @@ class LayoutTemplate {
     'cardBorderColor': cardBorderColor,
     'cardBorderWidth': cardBorderWidth,
     'cardBorderRadius': cardBorderRadius,
+    'cardSpacing': cardSpacing,
     'showFloorDivider': showFloorDivider,
     'cardBackgroundColor': cardBackgroundColor,
     'enableAlternateBubbleColor': enableAlternateBubbleColor,
@@ -249,6 +261,7 @@ class LayoutTemplate {
       cardBorderColor: json['cardBorderColor'] ?? '#e2e8f0',
       cardBorderWidth: json['cardBorderWidth'] ?? 1,
       cardBorderRadius: json['cardBorderRadius'] ?? 10,
+      cardSpacing: json['cardSpacing'] ?? 10,
       showFloorDivider: json['showFloorDivider'] ?? false,
       cardBackgroundColor: json['cardBackgroundColor'] ?? '#ffffff',
       enableAlternateBubbleColor: json['enableAlternateBubbleColor'] ?? false,
@@ -290,6 +303,7 @@ class LayoutTemplate {
     String? cardBorderColor,
     int? cardBorderWidth,
     int? cardBorderRadius,
+    int? cardSpacing,
     bool? showFloorDivider,
     String? cardBackgroundColor,
     bool? enableAlternateBubbleColor,
@@ -327,6 +341,7 @@ class LayoutTemplate {
       cardBorderColor: cardBorderColor ?? this.cardBorderColor,
       cardBorderWidth: cardBorderWidth ?? this.cardBorderWidth,
       cardBorderRadius: cardBorderRadius ?? this.cardBorderRadius,
+      cardSpacing: cardSpacing ?? this.cardSpacing,
       showFloorDivider: showFloorDivider ?? this.showFloorDivider,
       cardBackgroundColor: cardBackgroundColor ?? this.cardBackgroundColor,
       enableAlternateBubbleColor: enableAlternateBubbleColor ?? this.enableAlternateBubbleColor,
