@@ -11,16 +11,14 @@ class AiServiceConfig {
 
   // 默认快捷预设
   static const String defaultBaseUrl = 'https://api.siliconflow.cn/v1';
-  static const String modelDeepSeek = 'deepseek-ai/DeepSeek-V4.1-Flash';
-  static const String modelQwen = 'Qwen/Qwen3.6-27B';
-  static const String defaultModel = modelDeepSeek;
+  static const String defaultModel = 'zai-org/GLM-5.3-Flash';
 
   static const List<String> presetModels = [
-    modelDeepSeek,
-    modelQwen,
-    'deepseek-ai/DeepSeek-V3',
-    'Qwen/Qwen2.5-72B-Instruct',
-    'Qwen/Qwen2-VL-72B-Instruct',
+    'zai-org/GLM-5.3-Flash',
+    'Qwen/Qwen3.8-27B',
+    'moonshotai/Kimi-K2.7-Code',
+    'Pro/moonshotai/Kimi-K2.6',
+    'Qwen/Qwen3.6-35B-A3B',
   ];
 
   static Future<String> getBaseUrl() async {
@@ -45,7 +43,11 @@ class AiServiceConfig {
 
   static Future<String> getModel() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_kModelKey) ?? defaultModel;
+    final saved = prefs.getString(_kModelKey);
+    if (saved == null || saved.isEmpty || saved == 'deepseek-ai/DeepSeek-V4.1-Flash') {
+      return defaultModel;
+    }
+    return saved;
   }
 
   static Future<void> setModel(String model) async {
@@ -214,5 +216,71 @@ class TemplateAiGenerator {
     parsed['isBuiltin'] = false;
 
     return LayoutTemplate.fromJson(parsed);
+  }
+
+  /// 测试 API 连接与模型可用性
+  static Future<String> testConnection({
+    required String baseUrl,
+    required String apiKey,
+    required String model,
+  }) async {
+    if (apiKey.trim().isEmpty) {
+      throw Exception('请先填写 API Key！');
+    }
+    var cleanUrl = baseUrl.trim();
+    if (cleanUrl.endsWith('/')) {
+      cleanUrl = cleanUrl.substring(0, cleanUrl.length - 1);
+    }
+    final endpoint = cleanUrl.endsWith('/chat/completions')
+        ? cleanUrl
+        : '$cleanUrl/chat/completions';
+
+    final requestBody = jsonEncode({
+      'model': model.trim(),
+      'messages': [
+        {
+          'role': 'user',
+          'content': 'Hi, respond with OK only.',
+        }
+      ],
+      'max_tokens': 16,
+      'temperature': 0.1,
+    });
+
+    final stopwatch = Stopwatch()..start();
+    final response = await http
+        .post(
+          Uri.parse(endpoint),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ${apiKey.trim()}',
+          },
+          body: requestBody,
+        )
+        .timeout(const Duration(seconds: 15));
+    stopwatch.stop();
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      try {
+        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        final reply = decoded['choices']?[0]?['message']?['content']?.toString().trim() ?? '';
+        return '测试成功！响应耗时: ${stopwatch.elapsedMilliseconds}ms\n模型回复: $reply';
+      } catch (_) {
+        return '测试成功！HTTP ${response.statusCode} (耗时: ${stopwatch.elapsedMilliseconds}ms)';
+      }
+    } else {
+      String errMsg = 'HTTP ${response.statusCode}';
+      try {
+        final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+        if (decoded['message'] != null) {
+          errMsg += ': ${decoded['message']}';
+        } else if (decoded['error'] != null) {
+          errMsg += ': ${decoded['error']}';
+        }
+      } catch (_) {
+        errMsg += ': ${response.body}';
+      }
+      throw Exception(errMsg);
+    }
   }
 }

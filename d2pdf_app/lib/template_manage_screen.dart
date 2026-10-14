@@ -119,6 +119,10 @@ class _TemplateManageScreenState extends State<TemplateManageScreen> {
     final baseUrlController = TextEditingController(text: await AiServiceConfig.getBaseUrl());
     final apiKeyController = TextEditingController(text: await AiServiceConfig.getApiKey());
     String selectedModel = await AiServiceConfig.getModel();
+    final customModelController = TextEditingController(text: selectedModel);
+    bool isTesting = false;
+    String? testResult;
+    bool testSuccess = false;
 
     if (!mounted) return;
 
@@ -179,7 +183,10 @@ class _TemplateManageScreenState extends State<TemplateManageScreen> {
                       ),
                       onSelected: (val) {
                         if (val) {
-                          setDialogState(() => selectedModel = m);
+                          setDialogState(() {
+                            selectedModel = m;
+                            customModelController.text = m;
+                          });
                         }
                       },
                     );
@@ -187,18 +194,105 @@ class _TemplateManageScreenState extends State<TemplateManageScreen> {
                 ),
                 const SizedBox(height: 8),
                 TextField(
+                  controller: customModelController,
                   decoration: const InputDecoration(
-                    labelText: '或自定义模型名称',
+                    labelText: '当前使用模型名称 (可自定义)',
                     border: OutlineInputBorder(),
                     isDense: true,
                   ),
-                  controller: TextEditingController(text: selectedModel),
                   onChanged: (val) {
                     if (val.trim().isNotEmpty) {
-                      selectedModel = val.trim();
+                      setDialogState(() {
+                        selectedModel = val.trim();
+                      });
                     }
                   },
                 ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: isTesting
+                          ? null
+                          : () async {
+                              final key = apiKeyController.text.trim();
+                              if (key.isEmpty) {
+                                setDialogState(() {
+                                  testResult = '请先填写 API Key (密钥)！';
+                                  testSuccess = false;
+                                });
+                                return;
+                              }
+                              setDialogState(() {
+                                isTesting = true;
+                                testResult = '正在连接并测试模型 $selectedModel ...';
+                                testSuccess = false;
+                              });
+                              try {
+                                final res = await TemplateAiGenerator.testConnection(
+                                  baseUrl: baseUrlController.text,
+                                  apiKey: key,
+                                  model: selectedModel,
+                                );
+                                setDialogState(() {
+                                  isTesting = false;
+                                  testResult = res;
+                                  testSuccess = true;
+                                });
+                              } catch (e) {
+                                setDialogState(() {
+                                  isTesting = false;
+                                  testResult = '测试失败：${e.toString().replaceFirst('Exception: ', '')}';
+                                  testSuccess = false;
+                                });
+                              }
+                            },
+                      icon: isTesting
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.network_check, size: 16),
+                      label: Text(isTesting ? '正在测试...' : '测试模型连接'),
+                    ),
+                  ],
+                ),
+                if (testResult != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: testSuccess ? Colors.green.shade50 : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: testSuccess ? Colors.green.shade300 : Colors.red.shade300,
+                      ),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          testSuccess ? Icons.check_circle : Icons.error_outline,
+                          size: 18,
+                          color: testSuccess ? Colors.green.shade800 : Colors.red.shade800,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            testResult!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: testSuccess ? Colors.green.shade900 : Colors.red.shade900,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -207,15 +301,16 @@ class _TemplateManageScreenState extends State<TemplateManageScreen> {
               onPressed: () => Navigator.pop(ctx),
               child: const Text('取消'),
             ),
-            FilledButton(
+            FilledButton.icon(
               onPressed: () async {
                 await AiServiceConfig.setBaseUrl(baseUrlController.text);
                 await AiServiceConfig.setApiKey(apiKeyController.text);
                 await AiServiceConfig.setModel(selectedModel);
                 if (ctx.mounted) Navigator.pop(ctx);
               },
+              icon: const Icon(Icons.save, size: 16),
+              label: const Text('保存配置'),
               style: FilledButton.styleFrom(backgroundColor: const Color(0xFF192D50)),
-              child: const Text('保存配置'),
             ),
           ],
         ),
