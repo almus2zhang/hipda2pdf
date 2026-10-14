@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart' as http_io;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'layout_template.dart';
 
@@ -19,6 +20,7 @@ class AiServiceConfig {
     'moonshotai/Kimi-K2.7-Code',
     'Pro/moonshotai/Kimi-K2.6',
     'Qwen/Qwen3.6-35B-A3B',
+    'Pro/Qwen/Qwen2.5-VL-7B-Instruct',
   ];
 
   static Future<String> getBaseUrl() async {
@@ -57,6 +59,56 @@ class AiServiceConfig {
 }
 
 class TemplateAiGenerator {
+  /// 调用 AI 分析文本要求或参考图片，并返回生成的 LayoutTemplate
+  static http.Client _createRobustClient() {
+    final ioClient = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 30)
+      ..idleTimeout = const Duration(seconds: 15);
+    ioClient.badCertificateCallback = (cert, host, port) => true;
+    return http_io.IOClient(ioClient);
+  }
+
+  static Future<http.Response> _postWithRetry(
+    Uri uri, {
+    required Map<String, String> headers,
+    required String body,
+    Duration timeout = const Duration(seconds: 60),
+    int maxRetries = 2,
+  }) async {
+    int attempts = 0;
+    while (true) {
+      attempts++;
+      final client = _createRobustClient();
+      try {
+        final reqHeaders = Map<String, String>.from(headers);
+        reqHeaders['Connection'] = 'close';
+        reqHeaders['Accept'] = 'application/json';
+        reqHeaders['User-Agent'] = 'D2PDF/1.2.3 (Android)';
+        final res = await client
+            .post(uri, headers: reqHeaders, body: body)
+            .timeout(timeout);
+        return res;
+      } on SocketException catch (e) {
+        if (attempts >= maxRetries) {
+          throw Exception('网络连接中断 ($e)，请检查网络连接或稍后重试！');
+        }
+        await Future.delayed(const Duration(milliseconds: 600));
+      } on http.ClientException catch (e) {
+        if (attempts >= maxRetries) {
+          throw Exception('服务器连接中断 (${e.message})，可能由于接口负载或网络抖动，请重试！');
+        }
+        await Future.delayed(const Duration(milliseconds: 600));
+      } catch (e) {
+        if (attempts >= maxRetries) {
+          rethrow;
+        }
+        await Future.delayed(const Duration(milliseconds: 600));
+      } finally {
+        client.close();
+      }
+    }
+  }
+
   /// 调用 AI 分析文本要求或参考图片，并返回生成的 LayoutTemplate
   static Future<LayoutTemplate> generateTemplate({
     required String promptText,
@@ -98,6 +150,7 @@ class TemplateAiGenerator {
    - "card": 现代卡片上下流式（移动卡片风，楼层独立成卡片）
    - "split": 经典论坛左右分栏（左侧作者栏，右侧正文栏）
    - "minimal": 极简纯粹阅读（弱化作者，突出正文文本）
+   - "raw": 原汁原味（原汁原味保留论坛经典桌面排版）
 
 请分析用户的需求（文本描述或排版参考图），输出一个严格合法的 JSON 对象，不包含任何 Markdown 格式包裹（不要输出 ```json ... ```）：
 {
@@ -162,23 +215,30 @@ class TemplateAiGenerator {
       });
     }
 
+    // 若上传了图片且在硅基流动上选用了纯文本模型，自动选用支持视觉分析的 Qwen2.5-VL 视觉模型
+    var actualModel = model.trim();
+    if (imageFile != null && cleanUrl.contains('siliconflow')) {
+      final isVision = actualModel.toLowerCase().contains('vl') || actualModel.toLowerCase().contains('vision');
+      if (!isVision) {
+        actualModel = 'Pro/Qwen/Qwen2.5-VL-7B-Instruct';
+      }
+    }
+
     final requestBody = {
-      'model': model,
+      'model': actualModel,
       'messages': messages,
       'temperature': 0.7,
       'max_tokens': 2000,
     };
 
-    final response = await http.post(
+    final response = await _postWithRetry(
       Uri.parse(endpoint),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $apiKey',
       },
       body: jsonEncode(requestBody),
-    ).timeout(
-      const Duration(seconds: 60),
-      onTimeout: () => throw Exception('AI 接口调用超时，请检查网络或更换模型！'),
+      timeout: const Duration(seconds: 90),
     );
 
     if (response.statusCode != 200) {
@@ -248,16 +308,15 @@ class TemplateAiGenerator {
     });
 
     final stopwatch = Stopwatch()..start();
-    final response = await http
-        .post(
-          Uri.parse(endpoint),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${apiKey.trim()}',
-          },
-          body: requestBody,
-        )
-        .timeout(const Duration(seconds: 15));
+    final response = await _postWithRetry(
+      Uri.parse(endpoint),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${apiKey.trim()}',
+      },
+      body: requestBody,
+      timeout: const Duration(seconds: 20),
+    );
     stopwatch.stop();
 
     if (response.statusCode >= 200 && response.statusCode < 300) {

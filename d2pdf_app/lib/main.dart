@@ -574,7 +574,7 @@ class _MainScreenState extends State<MainScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  tpl.name,
+                                  tpl.shortName,
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF192D50)),
                                 ),
                               ),
@@ -1800,7 +1800,7 @@ class _MainScreenState extends State<MainScreen> {
                                             const SizedBox(width: 3),
                                             Flexible(
                                               child: Text(
-                                                '${_selectedTemplate.name} · ${_pdfWidth}px · ${_fontSize}px',
+                                                '${_selectedTemplate.shortName} · ${_pdfWidth}px · ${_fontSize}px',
                                                 style: const TextStyle(fontSize: 11, color: Color(0xFF192D50), fontWeight: FontWeight.bold),
                                                 overflow: TextOverflow.ellipsis,
                                               ),
@@ -2545,7 +2545,7 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
                           color: const Color(0xFF192D50),
                         ),
                         const SizedBox(width: 8),
-                        const Text('经典移动卡片', style: TextStyle(fontSize: 13)),
+                        const Text('气泡', style: TextStyle(fontSize: 13)),
                       ],
                     ),
                   ),
@@ -2559,7 +2559,7 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
                           color: const Color(0xFF192D50),
                         ),
                         const SizedBox(width: 8),
-                        const Text('经典左右分栏', style: TextStyle(fontSize: 13)),
+                        const Text('经典', style: TextStyle(fontSize: 13)),
                       ],
                     ),
                   ),
@@ -2573,7 +2573,7 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
                           color: const Color(0xFF192D50),
                         ),
                         const SizedBox(width: 8),
-                        const Text('极简纯享阅读', style: TextStyle(fontSize: 13)),
+                        const Text('极简', style: TextStyle(fontSize: 13)),
                       ],
                     ),
                   ),
@@ -2587,7 +2587,7 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
                           color: const Color(0xFF192D50),
                         ),
                         const SizedBox(width: 8),
-                        const Text('原汁原味', style: TextStyle(fontSize: 13)),
+                        const Text('还原', style: TextStyle(fontSize: 13)),
                       ],
                     ),
                   ),
@@ -2616,7 +2616,7 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
                       const Icon(Icons.style, size: 14, color: Color(0xFF192D50)),
                       const SizedBox(width: 4),
                       Text(
-                        _previewTemplate.name,
+                        _previewTemplate.shortName,
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,

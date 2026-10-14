@@ -612,6 +612,11 @@ class TemplateRenderer {
           wrapEl.insertBefore(newNav, wrapEl.firstChild);
         }
 
+        // 彻底隐藏主楼内部重复显示的标题，直接展现正文内容
+        document.querySelectorAll('#threadtitle, .threadtitle, #postlist h2, #postlist > h2, .firstpost #threadtitle, .defaultpost #threadtitle').forEach(function(el) {
+          el.style.display = 'none';
+        });
+
         // 5. 注入专属与通用样式
         var styleId = 'd2pdf-dynamic-template-style';
         var styleEl = document.getElementById(styleId);
@@ -852,11 +857,13 @@ class TemplateRenderer {
           }
           '''))}
 
-          /* 彻底隐藏主贴顶部多余文字与按钮：打印、字体大小、倒序看贴、跳转到 */
+          /* 彻底隐藏主贴顶部多余文字与按钮：打印、字体大小、倒序看贴、跳转到，以及主楼内部重复显示的标题 */
           .pagecontrol, .print, a.print, a[href*="action=printable"],
           .msgfsize, .msgfontsize, #msgfontsize,
           em.rpostno, #rpostnobtn, #rpostnovalue, input[name="rpostno"],
-          a[href*="ordertype="] {
+          a[href*="ordertype="],
+          #threadtitle, .threadtitle, #postlist h2, #postlist > h2,
+          .firstpost #threadtitle, .defaultpost #threadtitle {
             display: none !important;
           }
 

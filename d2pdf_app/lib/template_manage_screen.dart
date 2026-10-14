@@ -531,7 +531,12 @@ class _AiCreateTemplateSheetState extends State<_AiCreateTemplateSheet> {
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery);
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 80,
+    );
     if (picked != null) {
       setState(() {
         _selectedImage = File(picked.path);
@@ -1179,6 +1184,33 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                   ),
                 ],
 
+                if (_current.layoutMode == 'raw') ...[
+                  const Divider(height: 24),
+                  const Text('原汁原味设置：', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF192D50).withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF192D50).withOpacity(0.15)),
+                    ),
+                    child: const Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.info_outline, size: 18, color: Color(0xFF192D50)),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '原汁原味模式：100% 保留 Discuz 经典原生左右分栏与边框排版，不添加现代气泡卡片装饰。可通过上方宽度设定条微调各宽度的阅读尺寸与字体排版。',
+                            style: TextStyle(fontSize: 12, height: 1.4, color: Color(0xFF192D50)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
                 const SizedBox(height: 16),
                 const Text('用户信息三要素设置：', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                 SwitchListTile(
@@ -1554,6 +1586,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
       return _buildSplitMock();
     } else if (_current.layoutMode == 'minimal') {
       return _buildMinimalMock();
+    } else if (_current.layoutMode == 'raw') {
+      return _buildRawMock();
     } else {
       return _buildBubbleCardMock();
     }
@@ -2105,6 +2139,145 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                       decoration: BoxDecoration(
                         border: Border(top: BorderSide(color: Colors.grey.shade100)),
                         color: Colors.grey.shade50,
+                      ),
+                      child: const Text(
+                        '—— 原汁原味个性签名档',
+                        style: TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRawMock() {
+    final curAuthorWidth = _current.getAuthorWidthForWidth(_editingWidth).toDouble();
+    final bool showAvatar = _current.getShowAvatarForWidth(_editingWidth);
+    final bool showUsername = _current.getShowUsernameForWidth(_editingWidth);
+    final bool showOtherInfo = _current.getShowOtherInfoForWidth(_editingWidth);
+    final bool showFloorBadge = _current.getShowFloorBadgeForWidth(_editingWidth);
+    final bool showPostTime = _current.getShowPostTimeForWidth(_editingWidth);
+    final bool showSignature = _current.getShowSignatureForWidth(_editingWidth);
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFD9D9D9)),
+        borderRadius: BorderRadius.zero,
+      ),
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 左侧：Discuz 论坛经典原生作者栏
+            Container(
+              width: curAuthorWidth,
+              padding: EdgeInsets.all(curAuthorWidth <= 120 ? 6 : 10),
+              decoration: const BoxDecoration(
+                color: Color(0xFFF5F7FA),
+                border: Border(
+                  right: BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (showUsername)
+                    Text(
+                      'HelloEarth',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: Color(int.parse(_current.usernameColor.replaceFirst('#', '0xFF'))),
+                      ),
+                    ),
+                  if (showUsername && showAvatar) const SizedBox(height: 6),
+                  if (showAvatar)
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF192D50),
+                        shape: BoxShape.rectangle,
+                        borderRadius: BorderRadius.circular(2),
+                        border: Border.all(color: const Color(0xFFCBD5E1)),
+                      ),
+                      alignment: Alignment.center,
+                      child: const Text('H', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    ),
+                  if (showOtherInfo) ...[
+                    const SizedBox(height: 8),
+                    Text('级别: 论坛元老', style: TextStyle(fontSize: 10, color: Colors.blueGrey.shade700)),
+                    const SizedBox(height: 2),
+                    Text('精华: 12  帖子: 388', style: TextStyle(fontSize: 10, color: Colors.blueGrey.shade700)),
+                    const SizedBox(height: 2),
+                    Text('UID: 575606', style: TextStyle(fontSize: 10, color: Colors.blueGrey.shade700)),
+                    const SizedBox(height: 2),
+                    Text('注册: 2008-6-1', style: TextStyle(fontSize: 10, color: Colors.blueGrey.shade700)),
+                  ],
+                ],
+              ),
+            ),
+
+            // 右侧：Discuz 经典原生正文栏
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: const BoxDecoration(
+                      border: Border(bottom: BorderSide(color: Color(0xFFEEEEEE))),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        if (showPostTime)
+                          Text(
+                            '发表于 2026-10-14 09:30',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Color(int.parse(_current.postTimeColor.replaceFirst('#', '0xFF'))),
+                            ),
+                          )
+                        else
+                          const SizedBox(),
+                        if (showFloorBadge)
+                          Text(
+                            '1# 楼主',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(int.parse(_current.floorColor.replaceFirst('#', '0xFF'))),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(
+                      '这是原汁原味排版预览：100% 忠实保留 Discuz 经典左右分栏原生布局与论坛风貌，仅优化页面宽度与阅读字号，去除多余打印与无用控制按钮。',
+                      style: TextStyle(
+                        fontSize: 13,
+                        height: _current.postLineHeight,
+                        color: Color(int.parse(_current.postTextColor.replaceFirst('#', '0xFF'))),
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  if (showSignature)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: const BoxDecoration(
+                        border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+                        color: Colors.white,
                       ),
                       child: const Text(
                         '—— 原汁原味个性签名档',
