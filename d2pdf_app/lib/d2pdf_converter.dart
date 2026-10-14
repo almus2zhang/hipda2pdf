@@ -71,6 +71,7 @@ class D2PdfConverter {
     required String title,
     required String content,
     bool showBubble = true,
+    bool isMiniBubble = false,
   }) async {
     await checkAndRequestKeepAlivePermissions();
     try {
@@ -78,6 +79,7 @@ class D2PdfConverter {
         'title': title,
         'content': content,
         'showBubble': showBubble,
+        'isMiniBubble': isMiniBubble,
       });
     } catch (_) {}
   }
@@ -103,11 +105,26 @@ class D2PdfConverter {
   static Future<void> showFloatingBubble({
     required String title,
     required String content,
+    int progress = -1,
+    int max = -1,
+    bool isMini = false,
   }) async {
     try {
       await _nativeChannel.invokeMethod('showFloatingBubble', {
         'title': title,
         'content': content,
+        'progress': progress,
+        'max': max,
+        'isMini': isMini,
+      });
+    } catch (_) {}
+  }
+
+  /// Switch floating bubble mini mode on the fly
+  static Future<void> setFloatingBubbleMini(bool isMini) async {
+    try {
+      await _nativeChannel.invokeMethod('setFloatingBubbleMini', {
+        'isMini': isMini,
       });
     } catch (_) {}
   }

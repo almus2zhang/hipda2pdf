@@ -32,7 +32,7 @@ class KeepAliveService : Service() {
         private var wakeLock: PowerManager.WakeLock? = null
         private var wifiLock: WifiManager.WifiLock? = null
 
-        fun start(context: Context, title: String, content: String, showBubble: Boolean = true) {
+        fun start(context: Context, title: String, content: String, showBubble: Boolean = true, isMini: Boolean = false) {
             isRunning = true
             try {
                 if (wakeLock == null) {
@@ -62,7 +62,7 @@ class KeepAliveService : Service() {
 
             val hasOverlay = showBubble && FloatingBubbleManager.canDrawOverlays(context)
             if (hasOverlay) {
-                FloatingBubbleManager.show(context, title, content)
+                FloatingBubbleManager.show(context, title, content, -1, -1, isMini)
             }
 
             val intent = Intent(context, KeepAliveService::class.java).apply {

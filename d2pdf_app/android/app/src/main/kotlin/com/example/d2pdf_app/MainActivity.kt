@@ -42,7 +42,9 @@ class MainActivity: FlutterActivity() {
                 "startKeepAlive" -> {
                     val title = call.argument<String>("title") ?: "HiPDA D2PDF 批量生成"
                     val content = call.argument<String>("content") ?: "正在后台处理任务，请保持应用运行..."
-                    KeepAliveService.start(this, title, content)
+                    val showBubble = call.argument<Boolean>("showBubble") ?: true
+                    val isMiniBubble = call.argument<Boolean>("isMiniBubble") ?: false
+                    KeepAliveService.start(this, title, content, showBubble, isMiniBubble)
                     result.success(true)
                 }
                 "updateKeepAlive" -> {
@@ -67,7 +69,10 @@ class MainActivity: FlutterActivity() {
                 "showFloatingBubble" -> {
                     val title = call.argument<String>("title") ?: "HiPDA D2PDF"
                     val content = call.argument<String>("content") ?: "正在处理..."
-                    FloatingBubbleManager.show(this, title, content)
+                    val progress = call.argument<Int>("progress") ?: -1
+                    val max = call.argument<Int>("max") ?: -1
+                    val isMini = call.argument<Boolean>("isMini") ?: false
+                    FloatingBubbleManager.show(this, title, content, progress, max, isMini)
                     result.success(true)
                 }
                 "updateFloatingBubble" -> {
@@ -76,6 +81,11 @@ class MainActivity: FlutterActivity() {
                     val progress = call.argument<Int>("progress") ?: -1
                     val max = call.argument<Int>("max") ?: -1
                     FloatingBubbleManager.update(title, content, progress, max)
+                    result.success(true)
+                }
+                "setFloatingBubbleMini" -> {
+                    val isMini = call.argument<Boolean>("isMini") ?: false
+                    FloatingBubbleManager.setMiniMode(this, isMini)
                     result.success(true)
                 }
                 "hideFloatingBubble" -> {

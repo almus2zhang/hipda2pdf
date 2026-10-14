@@ -121,6 +121,7 @@ class _MainScreenState extends State<MainScreen> {
 
   LayoutTemplate _selectedTemplate = TemplateManager.defaultCard;
   bool _enableFloatingBubble = true;
+  bool _floatingBubbleMini = false;
 
   Future<void> _checkSavedLoginState() async {
     final prefs = await SharedPreferences.getInstance();
@@ -142,6 +143,7 @@ class _MainScreenState extends State<MainScreen> {
     }
 
     _enableFloatingBubble = prefs.getBool('enable_floating_bubble') ?? true;
+    _floatingBubbleMini = prefs.getBool('floating_bubble_mini') ?? false;
 
     final activeTemplate = await TemplateManager.getActiveTemplate();
     _selectedTemplate = activeTemplate;
@@ -155,6 +157,7 @@ class _MainScreenState extends State<MainScreen> {
       _isLoggedIn = hasCookie;
       _selectedTemplate = activeTemplate;
       _enableFloatingBubble = _enableFloatingBubble;
+      _floatingBubbleMini = _floatingBubbleMini;
     });
 
     if (hasCookie && _converterWebViewController != null) {
@@ -496,6 +499,7 @@ class _MainScreenState extends State<MainScreen> {
     int tempWidth = _pdfWidth;
     int tempFontSize = _fontSize;
     bool tempEnableFloatingBubble = _enableFloatingBubble;
+    bool tempFloatingBubbleMini = _floatingBubbleMini;
     bool hasOverlayPerm = await D2PdfConverter.canDrawOverlays();
 
     if (!mounted) return;
@@ -775,6 +779,79 @@ class _MainScreenState extends State<MainScreen> {
                     }
                   },
                 ),
+                if (tempEnableFloatingBubble) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF192D50).withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFF192D50).withOpacity(0.12)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              '悬浮窗显示形态：',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF192D50)),
+                            ),
+                            Row(
+                              children: [
+                                ChoiceChip(
+                                  label: const Text('完整胶囊'),
+                                  selected: !tempFloatingBubbleMini,
+                                  visualDensity: VisualDensity.compact,
+                                  labelStyle: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: !tempFloatingBubbleMini ? FontWeight.bold : FontWeight.normal,
+                                    color: !tempFloatingBubbleMini ? Colors.white : const Color(0xFF192D50),
+                                  ),
+                                  selectedColor: const Color(0xFF192D50),
+                                  onSelected: (val) {
+                                    if (val) {
+                                      setDialogState(() {
+                                        tempFloatingBubbleMini = false;
+                                      });
+                                    }
+                                  },
+                                ),
+                                const SizedBox(width: 6),
+                                ChoiceChip(
+                                  label: const Text('缩小为圆点 (n/n)'),
+                                  selected: tempFloatingBubbleMini,
+                                  visualDensity: VisualDensity.compact,
+                                  labelStyle: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: tempFloatingBubbleMini ? FontWeight.bold : FontWeight.normal,
+                                    color: tempFloatingBubbleMini ? Colors.white : const Color(0xFF192D50),
+                                  ),
+                                  selectedColor: const Color(0xFF192D50),
+                                  onSelected: (val) {
+                                    if (val) {
+                                      setDialogState(() {
+                                        tempFloatingBubbleMini = true;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          tempFloatingBubbleMini
+                              ? '已设为缩小到圆点按钮：仅在边缘展示数字进度 (如 3/15)，轻触可随时唤回应用，长按可展开。'
+                              : '胶囊样式：展示应用图标、当前帖子标题与详细进度，点击可返回应用，右侧点击破折号可快速缩小为圆点。',
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -804,14 +881,17 @@ class _MainScreenState extends State<MainScreen> {
       await prefs.setInt('pdf_render_width', tempWidth);
       await prefs.setInt('pdf_render_font_size', tempFontSize);
       await prefs.setBool('enable_floating_bubble', tempEnableFloatingBubble);
+      await prefs.setBool('floating_bubble_mini', tempFloatingBubbleMini);
       setState(() {
         _pdfWidth = tempWidth;
         _fontSize = tempFontSize;
         _enableFloatingBubble = tempEnableFloatingBubble;
+        _floatingBubbleMini = tempFloatingBubbleMini;
       });
+      await D2PdfConverter.setFloatingBubbleMini(tempFloatingBubbleMini);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已保存设置：模板 [${tempTemplate.name}] · 宽度 ${tempWidth}px · 字号 ${tempFontSize}px')),
+          SnackBar(content: Text('已保存设置：模板 [${tempTemplate.name}] · 悬浮球形态 [${tempFloatingBubbleMini ? "迷你圆点" : "完整胶囊"}]')),
         );
       }
     }
@@ -861,6 +941,7 @@ class _MainScreenState extends State<MainScreen> {
         title: 'HiPDA D2PDF 正在生成',
         content: item.title,
         showBubble: _enableFloatingBubble,
+        isMiniBubble: _floatingBubbleMini,
       );
     } else {
       setState(() {
@@ -955,6 +1036,13 @@ class _MainScreenState extends State<MainScreen> {
             content: actualTitle,
             progress: page,
             max: totalPages,
+          );
+        } else {
+          await D2PdfConverter.updateKeepAlive(
+            title: 'HiPDA 批量 ($batchIndex/$batchTotal)',
+            content: '第$batchIndex篇 ($page/$totalPages页) $actualTitle',
+            progress: batchIndex,
+            max: batchTotal,
           );
         }
         setState(() {
@@ -1295,6 +1383,7 @@ class _MainScreenState extends State<MainScreen> {
       title: 'HiPDA 批量导出 ($totalCount 篇)',
       content: '准备生成 (0/$totalCount)',
       showBubble: _enableFloatingBubble,
+      isMiniBubble: _floatingBubbleMini,
     );
 
     for (int i = 0; i < totalCount; i++) {
