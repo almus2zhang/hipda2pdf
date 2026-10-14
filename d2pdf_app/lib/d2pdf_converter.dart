@@ -502,8 +502,8 @@ class D2PdfConverter {
     return dir;
   }
 
-  /// Sanitize filename for safe saving
-  static String sanitizeFileName(String title) {
+  /// Sanitize base name for safe saving across formats
+  static String sanitizeBaseName(String title) {
     var name = title.replaceAll(RegExp(r'[\/\\:\*\?"<>\|\r\n\t]'), '_').trim();
     if (name.isEmpty) {
       name = 'thread_${DateTime.now().millisecondsSinceEpoch}';
@@ -511,7 +511,17 @@ class D2PdfConverter {
     if (name.length > 50) {
       name = name.substring(0, 50);
     }
-    return 'hipda-$name.pdf';
+    return 'hipda-$name';
+  }
+
+  /// Sanitize filename for safe saving
+  static String sanitizeFileName(String title) {
+    return '${sanitizeBaseName(title)}.pdf';
+  }
+
+  /// Sanitize markdown filename
+  static String sanitizeMarkdownFileName(String title) {
+    return '${sanitizeBaseName(title)}.md';
   }
 
   /// Merge multiple PDF files into one destination file while preserving each page's unique height and 1920px width

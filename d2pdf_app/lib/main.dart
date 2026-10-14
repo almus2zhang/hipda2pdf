@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -9,6 +10,7 @@ import 'd2pdf_converter.dart';
 import 'layout_template.dart';
 import 'template_renderer.dart';
 import 'template_manage_screen.dart';
+import 'markdown_exporter.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -100,6 +102,9 @@ class _MainScreenState extends State<MainScreen> {
     return '超清 4K';
   }
 
+  // Export format: 'pdf', 'md', 'both'
+  String _exportFormat = 'pdf';
+
   // Conversion state
   bool _isConverting = false;
   bool _isCancelRequested = false;
@@ -144,6 +149,7 @@ class _MainScreenState extends State<MainScreen> {
 
     _enableFloatingBubble = prefs.getBool('enable_floating_bubble') ?? true;
     _floatingBubbleMini = prefs.getBool('floating_bubble_mini') ?? false;
+    _exportFormat = prefs.getString('export_format') ?? 'pdf';
 
     final activeTemplate = await TemplateManager.getActiveTemplate();
     _selectedTemplate = activeTemplate;
@@ -500,6 +506,7 @@ class _MainScreenState extends State<MainScreen> {
     int tempFontSize = _fontSize;
     bool tempEnableFloatingBubble = _enableFloatingBubble;
     bool tempFloatingBubbleMini = _floatingBubbleMini;
+    String tempExportFormat = _exportFormat;
     bool hasOverlayPerm = await D2PdfConverter.canDrawOverlays();
 
     if (!mounted) return;
@@ -727,6 +734,99 @@ class _MainScreenState extends State<MainScreen> {
                   ),
                 ),
                 const Divider(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      '导出文件格式：',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF192D50).withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        tempExportFormat == 'md'
+                            ? '仅 Markdown (.md)'
+                            : (tempExportFormat == 'both' ? 'PDF + Markdown' : '仅 PDF (.pdf)'),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF192D50)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    ChoiceChip(
+                      label: const Text('仅 PDF'),
+                      selected: tempExportFormat == 'pdf',
+                      visualDensity: VisualDensity.compact,
+                      labelStyle: TextStyle(
+                        fontSize: 12,
+                        fontWeight: tempExportFormat == 'pdf' ? FontWeight.bold : FontWeight.normal,
+                        color: tempExportFormat == 'pdf' ? Colors.white : const Color(0xFF192D50),
+                      ),
+                      selectedColor: const Color(0xFF192D50),
+                      onSelected: (val) {
+                        if (val) {
+                          setDialogState(() {
+                            tempExportFormat = 'pdf';
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    ChoiceChip(
+                      label: const Text('仅 Markdown'),
+                      selected: tempExportFormat == 'md',
+                      visualDensity: VisualDensity.compact,
+                      labelStyle: TextStyle(
+                        fontSize: 12,
+                        fontWeight: tempExportFormat == 'md' ? FontWeight.bold : FontWeight.normal,
+                        color: tempExportFormat == 'md' ? Colors.white : const Color(0xFF192D50),
+                      ),
+                      selectedColor: const Color(0xFF192D50),
+                      onSelected: (val) {
+                        if (val) {
+                          setDialogState(() {
+                            tempExportFormat = 'md';
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    ChoiceChip(
+                      label: const Text('两者均导出'),
+                      selected: tempExportFormat == 'both',
+                      visualDensity: VisualDensity.compact,
+                      labelStyle: TextStyle(
+                        fontSize: 12,
+                        fontWeight: tempExportFormat == 'both' ? FontWeight.bold : FontWeight.normal,
+                        color: tempExportFormat == 'both' ? Colors.white : const Color(0xFF192D50),
+                      ),
+                      selectedColor: const Color(0xFF192D50),
+                      onSelected: (val) {
+                        if (val) {
+                          setDialogState(() {
+                            tempExportFormat = 'both';
+                          });
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  tempExportFormat == 'md'
+                      ? '生成 Markdown (.md) 文档，排版保持与论坛一致，原图自动保存到文件名同名子目录。'
+                      : (tempExportFormat == 'both'
+                          ? '同时生成高精度 PDF 与 Markdown (.md) 文档，图片保存到同名目录。'
+                          : '生成高精度原生连续单页 PDF 文档，保存至手机 Download/D2PDF 目录。'),
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                ),
+                const Divider(height: 24),
                 const Text(
                   '后台运行与保活：',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
@@ -882,16 +982,19 @@ class _MainScreenState extends State<MainScreen> {
       await prefs.setInt('pdf_render_font_size', tempFontSize);
       await prefs.setBool('enable_floating_bubble', tempEnableFloatingBubble);
       await prefs.setBool('floating_bubble_mini', tempFloatingBubbleMini);
+      await prefs.setString('export_format', tempExportFormat);
       setState(() {
         _pdfWidth = tempWidth;
         _fontSize = tempFontSize;
         _enableFloatingBubble = tempEnableFloatingBubble;
         _floatingBubbleMini = tempFloatingBubbleMini;
+        _exportFormat = tempExportFormat;
       });
       await D2PdfConverter.setFloatingBubbleMini(tempFloatingBubbleMini);
       if (mounted) {
+        final formatName = tempExportFormat == 'md' ? 'Markdown' : (tempExportFormat == 'both' ? 'PDF+MD' : 'PDF');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已保存设置：模板 [${tempTemplate.name}] · 悬浮球形态 [${tempFloatingBubbleMini ? "迷你圆点" : "完整胶囊"}]')),
+          SnackBar(content: Text('已保存设置：模板 [${tempTemplate.name}] · 格式 [$formatName] · 悬浮球 [${tempFloatingBubbleMini ? "迷你圆点" : "完整胶囊"}]')),
         );
       }
     }
@@ -921,13 +1024,19 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  // Convert a single thread to PDF in Download/D2PDF
+  // Convert a single thread to PDF / Markdown in Download/D2PDF
   Future<File?> _convertSingleThreadToPdf(
     ForumThreadItem item, {
     bool isBatch = false,
     int batchIndex = 0,
     int batchTotal = 0,
+    String? overrideFormat,
   }) async {
+    final currentFormat = overrideFormat ?? _exportFormat;
+    final bool needPdf = currentFormat == 'pdf' || currentFormat == 'both';
+    final bool needMd = currentFormat == 'md' || currentFormat == 'both';
+    final String formatLabel = currentFormat == 'md' ? 'Markdown' : (currentFormat == 'both' ? 'PDF+MD' : 'PDF');
+
     if (!isBatch) {
       if (_isConverting) return null;
       setState(() {
@@ -935,10 +1044,10 @@ class _MainScreenState extends State<MainScreen> {
         _isCancelRequested = false;
         _convertingThreadTitle = item.title;
         _conversionProgress = 0.05;
-        _conversionStatus = '正在分析帖子总页数...';
+        _conversionStatus = '正在分析帖子总页数 ($formatLabel)...';
       });
       await D2PdfConverter.startKeepAlive(
-        title: 'HiPDA D2PDF 正在生成',
+        title: 'HiPDA 正在生成 $formatLabel',
         content: item.title,
         showBubble: _enableFloatingBubble,
         isMiniBubble: _floatingBubbleMini,
@@ -947,7 +1056,7 @@ class _MainScreenState extends State<MainScreen> {
       setState(() {
         _convertingThreadTitle = item.title;
         _conversionProgress = (batchIndex - 1) / batchTotal;
-        _conversionStatus = '批量进度 ($batchIndex/$batchTotal): 正在分析帖子总页数...';
+        _conversionStatus = '批量进度 ($batchIndex/$batchTotal): 正在分析帖子总页数 ($formatLabel)...';
       });
     }
 
@@ -1013,8 +1122,8 @@ class _MainScreenState extends State<MainScreen> {
       setState(() {
         _convertingThreadTitle = actualTitle;
         _conversionStatus = isBatch
-            ? '批量进度 ($batchIndex/$batchTotal): 共 $totalPages 页，开始渲染...'
-            : '检测到共 $totalPages 页，开始渲染并导出...';
+            ? '批量进度 ($batchIndex/$batchTotal): 共 $totalPages 页，开始处理 ($formatLabel)...'
+            : '检测到共 $totalPages 页，开始处理 ($formatLabel)...';
         _conversionProgress = isBatch
             ? ((batchIndex - 1 + 0.05) / batchTotal)
             : 0.1;
@@ -1022,6 +1131,7 @@ class _MainScreenState extends State<MainScreen> {
 
       final tempDir = await getTemporaryDirectory();
       final List<File> pagePdfs = [];
+      final List<MarkdownPageData> mdPages = [];
 
       for (int page = 1; page <= totalPages; page++) {
         if (_isCancelRequested) {
@@ -1032,7 +1142,7 @@ class _MainScreenState extends State<MainScreen> {
         final double singlePageFraction = (page - 1) / totalPages;
         if (!isBatch) {
           await D2PdfConverter.updateKeepAlive(
-            title: 'HiPDA D2PDF 正在生成 ($page/$totalPages)',
+            title: 'HiPDA 生成 $formatLabel ($page/$totalPages)',
             content: actualTitle,
             progress: page,
             max: totalPages,
@@ -1094,95 +1204,115 @@ class _MainScreenState extends State<MainScreen> {
           return null;
         }
 
-        setState(() {
-          _conversionStatus = '正在排版第 $page / $totalPages 页 (${_pdfWidth}px 宽屏, 左对齐)...';
-        });
-
-        final auxSizes = _MainScreenState.getAuxiliaryFontSizes(_fontSize);
-        final int usernameSize = auxSizes['username']!;
-        final int metaSize = auxSizes['meta']!;
-        final int floorSize = auxSizes['floor']!;
-
-        final injectionScript = TemplateRenderer.generateInjectionJs(
-          template: _selectedTemplate,
-          width: _pdfWidth,
-          fontSize: _fontSize,
-          usernameSize: usernameSize,
-          metaSize: metaSize,
-          floorSize: floorSize,
-          pageTitle: actualTitle,
-          isPreview: false,
-        );
-
-        // Inject dynamic template styles & DOM reconstruction
-        await controller.evaluateJavascript(source: injectionScript);
-
-        await Future.delayed(const Duration(milliseconds: 500));
-
-        // Measure exact content height without trailing blank space
-        final heightVal = await controller.evaluateJavascript(source: """
-          (function() {
-            document.documentElement.style.height = 'auto';
-            document.documentElement.style.minHeight = '0';
-            document.body.style.height = 'auto';
-            document.body.style.minHeight = '0';
-            document.body.style.paddingBottom = '0';
-            document.body.style.marginBottom = '0';
-            var wrap = document.getElementById('wrap') || document.querySelector('.wrap');
-            if (wrap) {
-              wrap.style.height = 'auto';
-              wrap.style.minHeight = '0';
-              wrap.style.paddingBottom = '0';
-              wrap.style.marginBottom = '0';
-            }
-            var postlist = document.getElementById('postlist');
-            var bottomY = 0;
-            if (postlist) {
-              var rect = postlist.getBoundingClientRect();
-              var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
-              bottomY = rect.bottom + scrollY;
-              var tables = postlist.querySelectorAll('table[id^="pid"], table.viewthread, .viewthread');
-              if (tables.length > 0) {
-                var last = tables[tables.length - 1];
-                var r = last.getBoundingClientRect();
-                var b = r.bottom + scrollY;
-                if (b > bottomY) bottomY = b;
+        // Step A: Extract Markdown structural data if needed
+        if (needMd) {
+          setState(() {
+            _conversionStatus = '正在提取第 $page / $totalPages 页结构与楼层信息...';
+          });
+          try {
+            final extractJs = MarkdownExporter.getExtractScript(page);
+            final pageDataVal = await controller.evaluateJavascript(source: extractJs);
+            if (pageDataVal != null) {
+              final String jsonStr = pageDataVal is String ? pageDataVal : pageDataVal.toString();
+              if (jsonStr.isNotEmpty && jsonStr != 'null') {
+                final decoded = jsonDecode(jsonStr);
+                if (decoded is Map<String, dynamic>) {
+                  mdPages.add(MarkdownPageData.fromJson(decoded));
+                } else if (decoded is Map) {
+                  mdPages.add(MarkdownPageData.fromJson(Map<String, dynamic>.from(decoded)));
+                }
               }
             }
-            if (bottomY <= 0) {
-              bottomY = Math.max(document.body.scrollHeight || 0, document.documentElement.scrollHeight || 0);
-            }
-            return Math.ceil(bottomY + 16);
-          })();
-        """);
-        final double rawHeight = (heightVal is num)
-            ? heightVal.toDouble()
-            : double.tryParse(heightVal?.toString() ?? '600') ?? 600.0;
-        final double contentHeight = rawHeight;
-
-        setState(() {
-          _conversionStatus = '正在提取第 $page / $totalPages 页样式与排版...';
-        });
-
-        // Step 4: Extract rendered HTML and print to PDF via native Android PrintDocumentAdapter
-        final String pageHtml = await controller.getHtml() ?? '';
-        final pagePdfFile = File('${tempDir.path}/thread_${item.tid}_p$page.pdf');
-        if (pagePdfFile.existsSync()) {
-          pagePdfFile.deleteSync();
+          } catch (e) {
+            debugPrint('Markdown extraction error on page $page: $e');
+          }
         }
 
-        setState(() {
-          _conversionStatus = '正在将第 $page / $totalPages 页保存为高精度 PDF...';
-        });
+        // Step B: Inject PDF layout & render PDF page if needed
+        if (needPdf) {
+          setState(() {
+            _conversionStatus = '正在排版第 $page / $totalPages 页 (${_pdfWidth}px 宽屏, 左对齐)...';
+          });
 
-        await D2PdfConverter.printHtmlToPdfNative(
-          htmlContent: pageHtml,
-          outputPath: pagePdfFile.path,
-          widthPx: _pdfWidth.toDouble(),
-          heightPx: contentHeight,
-        );
+          final auxSizes = _MainScreenState.getAuxiliaryFontSizes(_fontSize);
+          final int usernameSize = auxSizes['username']!;
+          final int metaSize = auxSizes['meta']!;
+          final int floorSize = auxSizes['floor']!;
 
-        pagePdfs.add(pagePdfFile);
+          final injectionScript = TemplateRenderer.generateInjectionJs(
+            template: _selectedTemplate,
+            width: _pdfWidth,
+            fontSize: _fontSize,
+            usernameSize: usernameSize,
+            metaSize: metaSize,
+            floorSize: floorSize,
+            pageTitle: actualTitle,
+            isPreview: false,
+          );
+
+          await controller.evaluateJavascript(source: injectionScript);
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          // Measure exact content height without trailing blank space
+          final heightVal = await controller.evaluateJavascript(source: """
+            (function() {
+              document.documentElement.style.height = 'auto';
+              document.documentElement.style.minHeight = '0';
+              document.body.style.height = 'auto';
+              document.body.style.minHeight = '0';
+              document.body.style.paddingBottom = '0';
+              document.body.style.marginBottom = '0';
+              var wrap = document.getElementById('wrap') || document.querySelector('.wrap');
+              if (wrap) {
+                wrap.style.height = 'auto';
+                wrap.style.minHeight = '0';
+                wrap.style.paddingBottom = '0';
+                wrap.style.marginBottom = '0';
+              }
+              var postlist = document.getElementById('postlist');
+              var bottomY = 0;
+              if (postlist) {
+                var rect = postlist.getBoundingClientRect();
+                var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+                bottomY = rect.bottom + scrollY;
+                var tables = postlist.querySelectorAll('table[id^="pid"], table.viewthread, .viewthread');
+                if (tables.length > 0) {
+                  var last = tables[tables.length - 1];
+                  var r = last.getBoundingClientRect();
+                  var b = r.bottom + scrollY;
+                  if (b > bottomY) bottomY = b;
+                }
+              }
+              if (bottomY <= 0) {
+                bottomY = Math.max(document.body.scrollHeight || 0, document.documentElement.scrollHeight || 0);
+              }
+              return Math.ceil(bottomY + 16);
+            })();
+          """);
+          final double rawHeight = (heightVal is num)
+              ? heightVal.toDouble()
+              : double.tryParse(heightVal?.toString() ?? '600') ?? 600.0;
+          final double contentHeight = rawHeight;
+
+          setState(() {
+            _conversionStatus = '正在将第 $page / $totalPages 页保存为高精度 PDF...';
+          });
+
+          final String pageHtml = await controller.getHtml() ?? '';
+          final pagePdfFile = File('${tempDir.path}/thread_${item.tid}_p$page.pdf');
+          if (pagePdfFile.existsSync()) {
+            pagePdfFile.deleteSync();
+          }
+
+          await D2PdfConverter.printHtmlToPdfNative(
+            htmlContent: pageHtml,
+            outputPath: pagePdfFile.path,
+            widthPx: _pdfWidth.toDouble(),
+            heightPx: contentHeight,
+          );
+
+          pagePdfs.add(pagePdfFile);
+        }
 
         if (_isCancelRequested) {
           _finishCancellation(pagePdfs, isBatch: isBatch);
@@ -1195,29 +1325,57 @@ class _MainScreenState extends State<MainScreen> {
         return null;
       }
 
-      setState(() {
-        _conversionStatus = isBatch
-            ? '批量进度 ($batchIndex/$batchTotal): 正在合并保存到 Download/D2PDF...'
-            : '正在合并保存到手机 Download/D2PDF 目录...';
-        _conversionProgress = isBatch
-            ? ((batchIndex - 1 + 0.95) / batchTotal)
-            : 0.92;
-      });
-
-      // Target directory: Download/D2PDF
       final destDir = await D2PdfConverter.getDownloadD2PdfDirectory();
-      final fileName = D2PdfConverter.sanitizeFileName(actualTitle);
-      final finalPdfPath = '${destDir.path}/$fileName';
+      final baseName = D2PdfConverter.sanitizeBaseName(actualTitle);
 
-      final finalPdfFile = await D2PdfConverter.mergePdfs(pagePdfs, finalPdfPath);
+      // Save PDF if needed
+      File? finalPdfFile;
+      if (needPdf && pagePdfs.isNotEmpty) {
+        setState(() {
+          _conversionStatus = isBatch
+              ? '批量进度 ($batchIndex/$batchTotal): 正在合并保存 PDF 到 Download/D2PDF...'
+              : '正在合并保存高精度 PDF 到手机 Download/D2PDF 目录...';
+          _conversionProgress = isBatch
+              ? ((batchIndex - 1 + 0.95) / batchTotal)
+              : 0.92;
+        });
 
-      // Clean up temporary single page files
-      for (final f in pagePdfs) {
-        if (f.existsSync()) {
-          try {
-            f.deleteSync();
-          } catch (_) {}
+        final finalPdfPath = '${destDir.path}/$baseName.pdf';
+        finalPdfFile = await D2PdfConverter.mergePdfs(pagePdfs, finalPdfPath);
+
+        // Clean up temporary single page files
+        for (final f in pagePdfs) {
+          if (f.existsSync()) {
+            try {
+              f.deleteSync();
+            } catch (_) {}
+          }
         }
+      }
+
+      // Save Markdown & images if needed
+      MarkdownExportResult? mdResult;
+      if (needMd && mdPages.isNotEmpty) {
+        setState(() {
+          _conversionStatus = isBatch
+              ? '批量进度 ($batchIndex/$batchTotal): 正在下载图片并生成 Markdown...'
+              : '正在下载高清图片并生成 Markdown (.md)...';
+        });
+
+        mdResult = await MarkdownExporter.exportMarkdownDocument(
+          pages: mdPages,
+          baseName: baseName,
+          destDir: destDir,
+          threadUrl: item.url,
+          originalAuthor: item.author,
+          totalPages: totalPages,
+          sessionCookies: savedCookies ?? [],
+          onProgress: (status, prog) {
+            setState(() {
+              _conversionStatus = isBatch ? '批量 ($batchIndex/$batchTotal): $status' : status;
+            });
+          },
+        );
       }
 
       if (!isBatch) {
@@ -1230,33 +1388,66 @@ class _MainScreenState extends State<MainScreen> {
         });
 
         if (mounted) {
+          final String dialogTitle = currentFormat == 'md'
+              ? 'Markdown 生成成功'
+              : (currentFormat == 'both' ? 'PDF 与 Markdown 生成成功' : 'PDF 生成成功');
+
+          String dialogContent = '';
+          if (currentFormat == 'md' && mdResult != null) {
+            dialogContent = '已成功生成 Markdown 文档并归档图片：\n\n'
+                '📝 文档: ${mdResult.mdFile.path}\n'
+                '📁 图片目录: ${mdResult.imageDir.path}\n'
+                '🖼️ 已归档图片: ${mdResult.totalImagesDownloaded} 张';
+          } else if (currentFormat == 'both' && finalPdfFile != null && mdResult != null) {
+            dialogContent = '已成功生成 PDF 与 Markdown：\n\n'
+                '📄 PDF 文件: ${finalPdfFile.path}\n'
+                '📝 MD 文档: ${mdResult.mdFile.path}\n'
+                '📁 图片目录: ${mdResult.imageDir.path}\n'
+                '🖼️ 已归档图片: ${mdResult.totalImagesDownloaded} 张';
+          } else if (finalPdfFile != null) {
+            dialogContent = '已成功生成并保存到手机目录：\n\n${finalPdfFile.path}';
+          }
+
           showDialog(
             context: context,
             builder: (ctx) => AlertDialog(
-              title: const Text('PDF 生成成功'),
-              content: Text(
-                '已成功生成并保存到手机目录：\n\n${finalPdfFile.path}\n\n文件名: $fileName',
+              title: Text(dialogTitle),
+              content: SingleChildScrollView(
+                child: Text(dialogContent),
               ),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
                   child: const Text('确定'),
                 ),
-                FilledButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _openGeneratedPdf(finalPdfFile.path);
-                  },
-                  icon: const Icon(Icons.open_in_new),
-                  label: const Text('立即打开'),
-                ),
+                if (finalPdfFile != null)
+                  FilledButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _openGeneratedPdf(finalPdfFile!.path);
+                    },
+                    icon: const Icon(Icons.picture_as_pdf, size: 16),
+                    label: Text(currentFormat == 'both' ? '打开 PDF' : '立即打开'),
+                  ),
+                if (mdResult != null)
+                  FilledButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      OpenFilex.open(mdResult!.mdFile.path);
+                    },
+                    icon: const Icon(Icons.description, size: 16),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: currentFormat == 'both' ? const Color(0xFF0F766E) : null,
+                    ),
+                    label: Text(currentFormat == 'both' ? '打开 MD' : '立即打开'),
+                  ),
               ],
             ),
           );
         }
       }
 
-      return finalPdfFile;
+      return finalPdfFile ?? mdResult?.mdFile;
     } catch (e) {
       if (_isCancelRequested) {
         _finishCancellation([], isBatch: isBatch);
@@ -1278,92 +1469,215 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
-  void _startGeneratePdf(ForumThreadItem item) {
-    _convertSingleThreadToPdf(item, isBatch: false);
+  void _startGeneratePdf(ForumThreadItem item, {String? overrideFormat}) {
+    _convertSingleThreadToPdf(item, isBatch: false, overrideFormat: overrideFormat);
+  }
+
+  void _showFormatSelectionSheet(ForumThreadItem item) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '选择导出格式',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF192D50)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.title,
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.picture_as_pdf, color: Color(0xFF192D50)),
+                title: const Text('仅生成 PDF (.pdf)'),
+                subtitle: const Text('高精度连续单页排版，适合离线阅读与打印'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _startGeneratePdf(item, overrideFormat: 'pdf');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.description, color: Color(0xFF0F766E)),
+                title: const Text('仅生成 Markdown (.md)'),
+                subtitle: const Text('结构化排版，高清图片自动下载至同名目录，适合笔记与知识库'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _startGeneratePdf(item, overrideFormat: 'md');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.file_copy, color: Colors.indigo),
+                title: const Text('同时生成两者 (PDF + Markdown)'),
+                subtitle: const Text('兼顾精美 PDF 与便携 Markdown 文档及图片目录'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _startGeneratePdf(item, overrideFormat: 'both');
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _confirmStartBatchGenerate() async {
     if (_selectedItems.isEmpty) return;
     final total = _selectedItems.length;
     final hasOverlayPerm = await D2PdfConverter.canDrawOverlays();
+    String selectedBatchFormat = _exportFormat;
 
     if (!mounted) return;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('开始批量生成 PDF'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('已选定 $total 个帖子进行批量生成。\n\n批量生成时已启动系统前台保活服务与唤醒锁。'),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: hasOverlayPerm ? Colors.green.shade50 : Colors.amber.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: hasOverlayPerm ? Colors.green.shade200 : Colors.amber.shade300),
-              ),
-              child: Row(
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          title: const Text('开始批量生成'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('已选定 $total 个帖子进行批量生成。\n批量生成时已启动系统前台保活服务与唤醒锁。'),
+              const SizedBox(height: 12),
+              const Text('导出格式：', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF192D50))),
+              const SizedBox(height: 6),
+              Row(
                 children: [
-                  Icon(
-                    hasOverlayPerm ? Icons.check_circle : Icons.info_outline,
-                    size: 18,
-                    color: hasOverlayPerm ? Colors.green.shade700 : Colors.amber.shade900,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      hasOverlayPerm
-                          ? '悬浮球已就绪：切换到后台或息屏时悬浮球将保持持续渲染（无需系统通知栏）。'
-                          : '如果需要切换到后台任务继续运行，请开启悬浮球。',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: hasOverlayPerm ? Colors.green.shade800 : Colors.amber.shade900,
-                      ),
+                  ChoiceChip(
+                    label: const Text('仅 PDF'),
+                    selected: selectedBatchFormat == 'pdf',
+                    visualDensity: VisualDensity.compact,
+                    labelStyle: TextStyle(
+                      fontSize: 11,
+                      fontWeight: selectedBatchFormat == 'pdf' ? FontWeight.bold : FontWeight.normal,
+                      color: selectedBatchFormat == 'pdf' ? Colors.white : const Color(0xFF192D50),
                     ),
+                    selectedColor: const Color(0xFF192D50),
+                    onSelected: (val) {
+                      if (val) setDlgState(() => selectedBatchFormat = 'pdf');
+                    },
                   ),
-                  if (!hasOverlayPerm)
-                    TextButton(
-                      onPressed: () async {
-                        await D2PdfConverter.requestOverlayPermission();
-                      },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text('去开启', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 6),
+                  ChoiceChip(
+                    label: const Text('仅 MD'),
+                    selected: selectedBatchFormat == 'md',
+                    visualDensity: VisualDensity.compact,
+                    labelStyle: TextStyle(
+                      fontSize: 11,
+                      fontWeight: selectedBatchFormat == 'md' ? FontWeight.bold : FontWeight.normal,
+                      color: selectedBatchFormat == 'md' ? Colors.white : const Color(0xFF192D50),
                     ),
+                    selectedColor: const Color(0xFF192D50),
+                    onSelected: (val) {
+                      if (val) setDlgState(() => selectedBatchFormat = 'md');
+                    },
+                  ),
+                  const SizedBox(width: 6),
+                  ChoiceChip(
+                    label: const Text('PDF+MD'),
+                    selected: selectedBatchFormat == 'both',
+                    visualDensity: VisualDensity.compact,
+                    labelStyle: TextStyle(
+                      fontSize: 11,
+                      fontWeight: selectedBatchFormat == 'both' ? FontWeight.bold : FontWeight.normal,
+                      color: selectedBatchFormat == 'both' ? Colors.white : const Color(0xFF192D50),
+                    ),
+                    selectedColor: const Color(0xFF192D50),
+                    onSelected: (val) {
+                      if (val) setDlgState(() => selectedBatchFormat = 'both');
+                    },
+                  ),
                 ],
               ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: hasOverlayPerm ? Colors.green.shade50 : Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: hasOverlayPerm ? Colors.green.shade200 : Colors.amber.shade300),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      hasOverlayPerm ? Icons.check_circle : Icons.info_outline,
+                      size: 18,
+                      color: hasOverlayPerm ? Colors.green.shade700 : Colors.amber.shade900,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        hasOverlayPerm
+                            ? '悬浮球已就绪：切换到后台或息屏时悬浮球将保持持续渲染（无需系统通知栏）。'
+                            : '如果需要切换到后台任务继续运行，请开启悬浮球。',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: hasOverlayPerm ? Colors.green.shade800 : Colors.amber.shade900,
+                        ),
+                      ),
+                    ),
+                    if (!hasOverlayPerm)
+                      TextButton(
+                        onPressed: () async {
+                          await D2PdfConverter.requestOverlayPermission();
+                        },
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                        child: const Text('去开启', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('取消'),
+            ),
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _executeBatchGeneration(overrideFormat: selectedBatchFormat);
+              },
+              icon: const Icon(Icons.playlist_play),
+              label: Text('开始生成 ($total 篇)'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('取消'),
-          ),
-          FilledButton.icon(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _executeBatchGeneration();
-            },
-            icon: const Icon(Icons.playlist_play),
-            label: Text('开始生成 ($total 篇)'),
-          ),
-        ],
       ),
     );
   }
 
-  Future<void> _executeBatchGeneration() async {
+  Future<void> _executeBatchGeneration({String? overrideFormat}) async {
     if (_isConverting || _isBatchConverting) return;
     if (_selectedItems.isEmpty) return;
 
+    final currentFormat = overrideFormat ?? _exportFormat;
+    final formatLabel = currentFormat == 'md' ? 'Markdown' : (currentFormat == 'both' ? 'PDF+MD' : 'PDF');
     final itemsToProcess = List<ForumThreadItem>.from(_selectedItems.values);
     final totalCount = itemsToProcess.length;
 
@@ -1376,11 +1690,11 @@ class _MainScreenState extends State<MainScreen> {
       _batchSuccessTitles.clear();
       _batchFailedTitles.clear();
       _conversionProgress = 0.0;
-      _conversionStatus = '正在初始化批量生成任务 (共 $totalCount 篇)...';
+      _conversionStatus = '正在初始化批量生成任务 (共 $totalCount 篇 $formatLabel)...';
     });
 
     await D2PdfConverter.startKeepAlive(
-      title: 'HiPDA 批量导出 ($totalCount 篇)',
+      title: 'HiPDA 批量导出 ($totalCount 篇 $formatLabel)',
       content: '准备生成 (0/$totalCount)',
       showBubble: _enableFloatingBubble,
       isMiniBubble: _floatingBubbleMini,
@@ -1411,6 +1725,7 @@ class _MainScreenState extends State<MainScreen> {
         isBatch: true,
         batchIndex: currentNum,
         batchTotal: totalCount,
+        overrideFormat: currentFormat,
       );
 
       if (_isCancelRequested) {
@@ -1514,6 +1829,7 @@ class _MainScreenState extends State<MainScreen> {
           renderWidth: _pdfWidth,
           initialFontSize: _fontSize,
           initialTemplate: _selectedTemplate,
+          exportFormat: _exportFormat,
           onFontSizeChanged: (newSize) async {
             setState(() {
               _fontSize = newSize;
@@ -2037,11 +2353,24 @@ class _MainScreenState extends State<MainScreen> {
                                             ? null
                                             : ElevatedButton.icon(
                                                 onPressed: _isConverting ? null : () => _startGeneratePdf(item),
-                                                icon: const Icon(Icons.picture_as_pdf, size: 16),
-                                                label: const Text('生成PDF', style: TextStyle(fontSize: 12)),
+                                                onLongPress: _isConverting ? null : () => _showFormatSelectionSheet(item),
+                                                icon: Icon(
+                                                  _exportFormat == 'md'
+                                                      ? Icons.description
+                                                      : (_exportFormat == 'both' ? Icons.file_copy : Icons.picture_as_pdf),
+                                                  size: 16,
+                                                ),
+                                                label: Text(
+                                                  _exportFormat == 'md'
+                                                      ? '生成MD'
+                                                      : (_exportFormat == 'both' ? '生成PDF+MD' : '生成PDF'),
+                                                  style: const TextStyle(fontSize: 12),
+                                                ),
                                                 style: ElevatedButton.styleFrom(
                                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                                  backgroundColor: const Color(0xFF192D50),
+                                                  backgroundColor: _exportFormat == 'md'
+                                                      ? const Color(0xFF0F766E)
+                                                      : const Color(0xFF192D50),
                                                   foregroundColor: Colors.white,
                                                 ),
                                               ),
@@ -2416,6 +2745,7 @@ class ThreadPreviewScreen extends StatefulWidget {
   final ValueChanged<int>? onWidthChanged;
   final ValueChanged<LayoutTemplate>? onTemplateChanged;
   final void Function(ForumThreadItem item) onGeneratePdf;
+  final String exportFormat;
 
   const ThreadPreviewScreen({
     super.key,
@@ -2427,6 +2757,7 @@ class ThreadPreviewScreen extends StatefulWidget {
     this.onWidthChanged,
     this.onTemplateChanged,
     required this.onGeneratePdf,
+    this.exportFormat = 'pdf',
   });
 
   @override
@@ -2526,10 +2857,20 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
                 Navigator.of(context).pop();
                 widget.onGeneratePdf(widget.item);
               },
-              icon: const Icon(Icons.picture_as_pdf, size: 16),
-              label: const Text('生成PDF', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              icon: Icon(
+                widget.exportFormat == 'md'
+                    ? Icons.description
+                    : (widget.exportFormat == 'both' ? Icons.file_copy : Icons.picture_as_pdf),
+                size: 16,
+              ),
+              label: Text(
+                widget.exportFormat == 'md'
+                    ? '生成MD'
+                    : (widget.exportFormat == 'both' ? '生成PDF+MD' : '生成PDF'),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
               style: FilledButton.styleFrom(
-                backgroundColor: Colors.amber.shade700,
+                backgroundColor: widget.exportFormat == 'md' ? const Color(0xFF0F766E) : Colors.amber.shade700,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               ),
