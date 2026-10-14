@@ -60,7 +60,8 @@ class KeepAliveService : Service() {
                 }
             } catch (_: Exception) {}
 
-            if (showBubble && FloatingBubbleManager.canDrawOverlays(context)) {
+            val hasOverlay = showBubble && FloatingBubbleManager.canDrawOverlays(context)
+            if (hasOverlay) {
                 FloatingBubbleManager.show(context, title, content)
             }
 
@@ -68,8 +69,9 @@ class KeepAliveService : Service() {
                 action = ACTION_START
                 putExtra("title", title)
                 putExtra("content", content)
+                putExtra("showNotification", !hasOverlay)
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            if (!hasOverlay && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {
                 context.startService(intent)
@@ -115,29 +117,40 @@ class KeepAliveService : Service() {
         when (intent?.action) {
             ACTION_START -> {
                 isRunning = true
-                val title = intent.getStringExtra("title") ?: "HiPDA D2PDF 任务生成"
-                val content = intent.getStringExtra("content") ?: "正在后台处理任务，请保持应用运行..."
-                createNotificationChannel()
-                val notification = buildNotification(title, content, -1, -1)
-                try {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-                    } else {
-                        startForeground(NOTIFICATION_ID, notification)
-                    }
-                } catch (_: Exception) {
+                val showNotification = intent.getBooleanExtra("showNotification", true)
+                if (showNotification) {
+                    val title = intent.getStringExtra("title") ?: "HiPDA D2PDF 任务生成"
+                    val content = intent.getStringExtra("content") ?: "正在后台处理任务，请保持应用运行..."
+                    createNotificationChannel()
+                    val notification = buildNotification(title, content, -1, -1)
                     try {
-                        startForeground(NOTIFICATION_ID, notification)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
+                        } else {
+                            startForeground(NOTIFICATION_ID, notification)
+                        }
+                    } catch (_: Exception) {
+                        try {
+                            startForeground(NOTIFICATION_ID, notification)
+                        } catch (_: Exception) {}
+                    }
+                } else {
+                    try {
+                        stopForeground(true)
+                        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                        nm.cancel(NOTIFICATION_ID)
                     } catch (_: Exception) {}
                 }
             }
             ACTION_UPDATE -> {
-                val title = intent.getStringExtra("title") ?: "HiPDA D2PDF 任务生成"
-                val content = intent.getStringExtra("content") ?: "正在导出中..."
-                val progress = intent.getIntExtra("progress", -1)
-                val max = intent.getIntExtra("max", -1)
-                val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                nm.notify(NOTIFICATION_ID, buildNotification(title, content, progress, max))
+                if (!FloatingBubbleManager.isShowing) {
+                    val title = intent.getStringExtra("title") ?: "HiPDA D2PDF 任务生成"
+                    val content = intent.getStringExtra("content") ?: "正在导出中..."
+                    val progress = intent.getIntExtra("progress", -1)
+                    val max = intent.getIntExtra("max", -1)
+                    val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    nm.notify(NOTIFICATION_ID, buildNotification(title, content, progress, max))
+                }
             }
             ACTION_STOP -> {
                 isRunning = false

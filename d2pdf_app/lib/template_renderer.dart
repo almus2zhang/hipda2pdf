@@ -582,13 +582,10 @@ class TemplateRenderer {
             padding: 0 !important;
             box-sizing: border-box !important;
           }
-          table.viewthread tr:not(:first-child), table[id^="pid"] tr:not(:first-child) {
-            display: none !important;
-          }
           .postauthor, td.postauthor {
             display: none !important;
           }
-          .postactions, .modact, tr.threadad, tr.threadsep, td.line {
+          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line {
             display: none !important;
           }
           table.viewthread > tbody, table[id^="pid"] > tbody,
@@ -603,13 +600,17 @@ class TemplateRenderer {
             padding: 0 !important;
             margin: 0 !important;
             background: transparent !important;
+            visibility: visible !important;
+            opacity: 1 !important;
           }
-          .defaultpost, .postmessage, .t_msgfontfix {
+          .defaultpost, .postmessage, .t_msgfont, .t_msgfontfix {
             display: block !important;
             width: 100% !important;
             max-width: 100% !important;
             min-width: 100% !important;
             box-sizing: border-box !important;
+            visibility: visible !important;
+            opacity: 1 !important;
           }
           .postmessage table, .t_msgfontfix table {
             width: 100% !important;
@@ -644,13 +645,10 @@ class TemplateRenderer {
             box-sizing: border-box !important;
             background: #ffffff !important;
           }
-          table.viewthread tr:not(:first-child), table[id^="pid"] tr:not(:first-child) {
-            display: none !important;
-          }
           .postauthor, td.postauthor {
             display: none !important;
           }
-          .postactions, .modact, tr.threadad, tr.threadsep, td.line {
+          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line {
             display: none !important;
           }
           table.viewthread > tbody, table[id^="pid"] > tbody,
@@ -665,13 +663,17 @@ class TemplateRenderer {
             padding: 0 !important;
             margin: 0 !important;
             background: transparent !important;
+            visibility: visible !important;
+            opacity: 1 !important;
           }
-          .defaultpost, .postmessage, .t_msgfontfix {
+          .defaultpost, .postmessage, .t_msgfont, .t_msgfontfix {
             display: block !important;
             width: 100% !important;
             max-width: 100% !important;
             min-width: 100% !important;
             box-sizing: border-box !important;
+            visibility: visible !important;
+            opacity: 1 !important;
           }
           .postmessage table, .t_msgfontfix table {
             width: 100% !important;

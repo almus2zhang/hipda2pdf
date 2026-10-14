@@ -92,6 +92,14 @@ class _MainScreenState extends State<MainScreen> {
     }
   }
 
+  static String _getWidthLabel(int w) {
+    if (w <= 650) return '手机卡片';
+    if (w <= 850) return '标准宽屏';
+    if (w <= 1100) return '大屏宽幅';
+    if (w <= 1400) return '全景 2K';
+    return '超清 4K';
+  }
+
   // Conversion state
   bool _isConverting = false;
   bool _isCancelRequested = false;
@@ -546,142 +554,176 @@ class _MainScreenState extends State<MainScreen> {
                 ),
                 const SizedBox(height: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
                   decoration: BoxDecoration(
                     color: const Color(0xFF192D50).withOpacity(0.06),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: const Color(0xFF192D50).withOpacity(0.2)),
                   ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: tempTemplate.id,
+                      isExpanded: true,
+                      icon: const Icon(Icons.arrow_drop_down, color: Color(0xFF192D50)),
+                      items: allTemplates.map((tpl) {
+                        return DropdownMenuItem<String>(
+                          value: tpl.id,
+                          child: Row(
+                            children: [
+                              Icon(tpl.isBuiltin ? Icons.style : Icons.brush, size: 18, color: const Color(0xFF192D50)),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  tpl.name,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF192D50)),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF192D50).withOpacity(0.08),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  tpl.isBuiltin ? '内置' : '自定义',
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF192D50), fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          final matched = allTemplates.firstWhere((t) => t.id == val, orElse: () => tempTemplate);
+                          setDialogState(() {
+                            tempTemplate = matched;
+                          });
+                        }
+                      },
+                    ),
+                  ),
+                ),
+                const Divider(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      '正文字体大小：',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF192D50).withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '${tempFontSize}px${tempFontSize == 16 ? ' (默认)' : ''}',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF192D50)),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Slider(
+                  value: tempFontSize.toDouble().clamp(12.0, 36.0),
+                  min: 12.0,
+                  max: 36.0,
+                  divisions: 24,
+                  label: '${tempFontSize}px',
+                  activeColor: const Color(0xFF192D50),
+                  onChanged: (val) {
+                    setDialogState(() {
+                      tempFontSize = val.round();
+                    });
+                  },
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Icon(Icons.style, size: 18, color: Color(0xFF192D50)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          tempTemplate.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF192D50)),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF192D50).withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          tempTemplate.isBuiltin ? '内置预设' : '自定义模板',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF192D50), fontWeight: FontWeight.w500),
-                        ),
-                      ),
+                      Text('12px 紧凑', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                      Text('16px 默认', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                      Text('24px 适中', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                      Text('36px 特大', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                     ],
                   ),
                 ),
-                const SizedBox(height: 10),
-                const Text(
-                  '点击切换模板：',
-                  style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: allTemplates.map((tpl) {
-                    final isSelected = tpl.id == tempTemplate.id;
-                    return ChoiceChip(
-                      avatar: Icon(
-                        isSelected ? Icons.check_circle : (tpl.isBuiltin ? Icons.style : Icons.brush),
-                        size: 14,
-                        color: isSelected ? Colors.white : const Color(0xFF192D50),
-                      ),
-                      label: Text(tpl.name),
-                      selected: isSelected,
-                      selectedColor: const Color(0xFF192D50),
-                      backgroundColor: Colors.grey.shade100,
-                      labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black87,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 12,
-                      ),
-                      onSelected: (selected) {
-                        if (selected) {
-                          setDialogState(() {
-                            tempTemplate = tpl;
-                          });
-                        }
-                      },
-                    );
-                  }).toList(),
-                ),
                 const Divider(height: 24),
-                const Text(
-                  '正文字体大小：',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: kSupportedFontSizes.map((size) {
-                    final isSelected = size == tempFontSize;
-                    return ChoiceChip(
-                      label: Text('${size}px${size == 16 ? ' (默认)' : ''}'),
-                      selected: isSelected,
-                      selectedColor: const Color(0xFF192D50),
-                      labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black87,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      '页面宽度排版：',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF192D50).withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(4),
                       ),
-                      onSelected: (selected) {
-                        if (selected) {
-                          setDialogState(() {
-                            tempFontSize = size;
-                          });
-                        }
-                      },
-                    );
-                  }).toList(),
-                ),
-                const Divider(height: 24),
-                const Text(
-                  '页面宽度排版：',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-                const SizedBox(height: 6),
-                ...[
-                  {'width': 600, 'label': '600 px', 'desc': '手机卡片排版 (支持任意模板自适应)'},
-                  {'width': 800, 'label': '800 px', 'desc': '标准宽屏，适合左右分栏与大图'},
-                  {'width': 1280, 'label': '1280 px', 'desc': '超宽全景排版'},
-                  {'width': 1440, 'label': '1440 px', 'desc': '高清 2K 宽屏'},
-                  {'width': 1920, 'label': '1920 px', 'desc': '超清 4K 宽屏'},
-                ].map((opt) {
-                  final w = opt['width'] as int;
-                  final isCurrent = w == tempWidth;
-                  return RadioListTile<int>(
-                    value: w,
-                    groupValue: tempWidth,
-                    title: Text(
-                      opt['label'] as String,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: isCurrent ? const Color(0xFF192D50) : null,
+                      child: Text(
+                        '${tempWidth}px (${_getWidthLabel(tempWidth)})',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF192D50)),
                       ),
                     ),
-                    subtitle: Text(opt['desc'] as String, style: const TextStyle(fontSize: 11)),
-                    contentPadding: EdgeInsets.zero,
-                    activeColor: const Color(0xFF192D50),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setDialogState(() {
-                          tempWidth = val;
-                        });
-                      }
-                    },
-                  );
-                }),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Slider(
+                  value: tempWidth.toDouble().clamp(500.0, 1920.0),
+                  min: 500.0,
+                  max: 1920.0,
+                  divisions: 71,
+                  label: '${tempWidth}px',
+                  activeColor: const Color(0xFF192D50),
+                  onChanged: (val) {
+                    setDialogState(() {
+                      tempWidth = (val / 10).round() * 10;
+                    });
+                  },
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('500px 紧凑', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                      Text('600px 手机', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                      Text('800px 标准', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                      Text('1280px 全景', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                      Text('1920px 4K', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                    ],
+                  ),
+                ),
                 const Divider(height: 24),
                 const Text(
                   '后台运行与保活：',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.amber.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 16, color: Colors.amber.shade900),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '如果需要切换到后台任务继续运行，请开启悬浮球。',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.amber.shade900),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 6),
                 SwitchListTile(
@@ -690,8 +732,8 @@ class _MainScreenState extends State<MainScreen> {
                   title: const Text('启用屏幕悬浮球保活', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
                   subtitle: Text(
                     hasOverlayPerm
-                        ? '切到后台或息屏时显示迷你悬浮球，保持系统渲染管道活跃不中断'
-                        : '点击将请求悬浮窗权限。开启后可防止切后台时系统挂起渲染',
+                        ? '悬浮球开启时将保持系统渲染管线活跃，防止切后台中断，并在屏幕边缘实时显示生成进度（无需占用系统通知栏）。'
+                        : '未开启悬浮窗权限。如果需要切换到后台任务继续运行，请开启悬浮球。',
                     style: TextStyle(fontSize: 11, color: hasOverlayPerm ? Colors.grey.shade600 : Colors.orange.shade800),
                   ),
                   value: tempEnableFloatingBubble,
@@ -1163,10 +1205,11 @@ class _MainScreenState extends State<MainScreen> {
                   Expanded(
                     child: Text(
                       hasOverlayPerm
-                          ? '悬浮球保活已就绪：切到后台或息屏时悬浮球将保持渲染管道活跃并显示进度。'
-                          : '建议开启悬浮窗权限：切后台时可避免系统冻结 WebView 渲染管线。',
+                          ? '悬浮球已就绪：切换到后台或息屏时悬浮球将保持持续渲染（无需系统通知栏）。'
+                          : '如果需要切换到后台任务继续运行，请开启悬浮球。',
                       style: TextStyle(
                         fontSize: 12,
+                        fontWeight: FontWeight.bold,
                         color: hasOverlayPerm ? Colors.green.shade800 : Colors.amber.shade900,
                       ),
                     ),
