@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "com.example.d2pdf_app"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

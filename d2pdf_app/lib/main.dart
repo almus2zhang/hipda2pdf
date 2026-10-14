@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -7,6 +6,9 @@ import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'd2pdf_converter.dart';
+import 'layout_template.dart';
+import 'template_renderer.dart';
+import 'template_manage_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -109,6 +111,8 @@ class _MainScreenState extends State<MainScreen> {
     _checkSavedLoginState();
   }
 
+  LayoutTemplate _selectedTemplate = TemplateManager.defaultCard;
+
   Future<void> _checkSavedLoginState() async {
     final prefs = await SharedPreferences.getInstance();
     final savedCookies = prefs.getStringList('saved_session_cookies');
@@ -128,6 +132,9 @@ class _MainScreenState extends State<MainScreen> {
       _fontSize = 16;
     }
 
+    final activeTemplate = await TemplateManager.getActiveTemplate();
+    _selectedTemplate = activeTemplate;
+
     if (savedCookies != null && savedCookies.isNotEmpty) {
       await _restoreCookiesToManager(savedCookies);
     }
@@ -135,6 +142,7 @@ class _MainScreenState extends State<MainScreen> {
     if (!mounted) return;
     setState(() {
       _isLoggedIn = hasCookie;
+      _selectedTemplate = activeTemplate;
     });
 
     if (hasCookie && _converterWebViewController != null) {
@@ -490,6 +498,69 @@ class _MainScreenState extends State<MainScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      '当前排版模板：',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    TextButton.icon(
+                      onPressed: () async {
+                        Navigator.pop(ctx, false);
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (c) => TemplateManageScreen(
+                              initialSelectedTemplate: _selectedTemplate,
+                              onTemplateSelected: (t) {
+                                setState(() {
+                                  _selectedTemplate = t;
+                                });
+                              },
+                            ),
+                          ),
+                        );
+                        final active = await TemplateManager.getActiveTemplate();
+                        setState(() {
+                          _selectedTemplate = active;
+                        });
+                      },
+                      icon: const Icon(Icons.auto_awesome, size: 16),
+                      label: const Text('管理/AI创建'),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.blueGrey.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blueGrey.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.style, size: 18, color: Color(0xFF192D50)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _selectedTemplate.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ),
+                      Text(
+                        _selectedTemplate.isBuiltin ? '内置预设' : '自定义模板',
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 24),
                 const Text(
                   '正文字体大小：',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
@@ -525,11 +596,11 @@ class _MainScreenState extends State<MainScreen> {
                 ),
                 const SizedBox(height: 6),
                 ...[
-                  {'width': 600, 'label': '600 px', 'desc': '手机卡片排版 (42px圆头像，紧凑楼层)'},
-                  {'width': 800, 'label': '800 px', 'desc': '紧凑排版，字体与图片更大'},
-                  {'width': 1280, 'label': '1280 px', 'desc': '标准宽屏'},
-                  {'width': 1440, 'label': '1440 px', 'desc': '高清宽屏，适合平板/高分屏'},
-                  {'width': 1920, 'label': '1920 px', 'desc': '超宽全景模式'},
+                  {'width': 600, 'label': '600 px', 'desc': '手机卡片排版 (支持任意模板自适应)'},
+                  {'width': 800, 'label': '800 px', 'desc': '标准宽屏，适合左右分栏与大图'},
+                  {'width': 1280, 'label': '1280 px', 'desc': '超宽全景排版'},
+                  {'width': 1440, 'label': '1440 px', 'desc': '高清 2K 宽屏'},
+                  {'width': 1920, 'label': '1920 px', 'desc': '超清 4K 宽屏'},
                 ].map((opt) {
                   final w = opt['width'] as int;
                   final isCurrent = w == tempWidth;
@@ -775,394 +846,20 @@ class _MainScreenState extends State<MainScreen> {
         final int usernameSize = auxSizes['username']!;
         final int metaSize = auxSizes['meta']!;
         final int floorSize = auxSizes['floor']!;
-        final String jsTitle = jsonEncode(actualTitle);
 
-        final String extraCss = (_pdfWidth == 600)
-            ? '''
-              .postauthor, td.postauthor {
-                display: none !important;
-              }
-              .postcontent, td.postcontent {
-                display: block !important;
-                width: 600px !important;
-                max-width: 600px !important;
-                box-sizing: border-box !important;
-              }
-              .postmessage, .t_msgfont, .t_msgfontfix {
-                padding: 10px 14px 14px 14px !important;
-                box-sizing: border-box !important;
-                font-size: ${_fontSize}px !important;
-                line-height: 1.65 !important;
-              }
-              img {
-                max-width: 572px !important;
-                height: auto !important;
-              }
-            '''
-            : '''
-              .postauthor, .postauthor * {
-                text-align: left !important;
-              }
-              .postmessage, .t_msgfont, .t_msgfontfix {
-                font-size: ${_fontSize}px !important;
-                line-height: 1.65 !important;
-              }
-            ''';
+        final injectionScript = TemplateRenderer.generateInjectionJs(
+          template: _selectedTemplate,
+          width: _pdfWidth,
+          fontSize: _fontSize,
+          usernameSize: usernameSize,
+          metaSize: metaSize,
+          floorSize: floorSize,
+          pageTitle: actualTitle,
+          isPreview: false,
+        );
 
-        // Inject styles: ${_pdfWidth}px width, zero margin, text-align left
-        await controller.evaluateJavascript(source: """
-          (function() {
-            document.querySelectorAll('img[file]').forEach(function(img) {
-              if (img.getAttribute('file')) {
-                img.src = img.getAttribute('file');
-              }
-            });
-
-            var hideSelectors = [
-              '#header', '#umenu', '#menu', '#footer',
-              '.postactions', '.modact', '.pages', '.pageback', '#quickpost',
-              '.pages_btns', '#postlist_act', '.postbtn', '#newspecial', '#post_reply',
-              '.threadactions', '#visitedforums', '.forumcontrol', '#f_post',
-              'form[action*="post.php"]'
-            ];
-            hideSelectors.forEach(function(sel) {
-              document.querySelectorAll(sel).forEach(function(el) {
-                el.style.display = 'none';
-              });
-            });
-
-            // Remove any elements after #postlist (such as bottom reply form, bottom pagination, return to list)
-            var postlistEl = document.getElementById('postlist');
-            if (postlistEl && postlistEl.parentNode) {
-              var sib = postlistEl.nextElementSibling;
-              while (sib) {
-                var next = sib.nextElementSibling;
-                sib.remove();
-                sib = next;
-              }
-            }
-
-            // Remove top & bottom reply/newpost buttons and "返回列表"
-            document.querySelectorAll('a, button, span, div, p').forEach(function(el) {
-              var t = el.innerText ? el.innerText.trim() : '';
-              if (t === '发表回复' || t === '发表新帖' || t === '发新帖' || t === '发帖' || t === '回复' ||
-                  t === '返回列表' || t.indexOf('返回列表') !== -1) {
-                var container = el.closest('.pages_btns') || el.closest('.postbtn') || el.closest('.forumcontrol') || el.closest('#postlist_act') || el;
-                container.style.display = 'none';
-              }
-            });
-
-            document.querySelectorAll('a').forEach(function(a) {
-              if (a.innerText && a.innerText.indexOf('只看该作者') !== -1) {
-                a.style.display = 'none';
-              }
-            });
-
-            var is600 = ($_pdfWidth === 600);
-            if (is600) {
-              // 600px Mobile Card Layout
-              var tables = document.querySelectorAll('#postlist table[id^="pid"], table[id^="pid"]');
-              if (tables.length === 0) {
-                tables = document.querySelectorAll('table.viewthread, #postlist > table');
-              }
-
-              tables.forEach(function(table) {
-                var authorTd = table.querySelector('.postauthor');
-                var contentTd = table.querySelector('.postcontent');
-                if (!contentTd) return;
-
-                // Extract Avatar (img with file attribute or src)
-                var avatarSrc = '';
-                if (authorTd) {
-                  var avImg = authorTd.querySelector('.avatar img') || authorTd.querySelector('img[src*="avatar"]') || authorTd.querySelector('img');
-                  if (avImg) {
-                    avatarSrc = avImg.getAttribute('file') || avImg.src;
-                  }
-                }
-
-                // Extract Username
-                var username = '';
-                if (authorTd) {
-                  var userLink = authorTd.querySelector('.postinfo a') || authorTd.querySelector('cite a') || authorTd.querySelector('a[href*="space.php"]');
-                  if (userLink) {
-                    username = userLink.innerText.trim();
-                  }
-                }
-                if (!username && contentTd) {
-                  var cl = contentTd.querySelector('a[href*="space.php"]');
-                  if (cl) username = cl.innerText.trim();
-                }
-
-                // Extract Post Time & Floor Number from postinfo
-                var postInfo = contentTd.querySelector('.postinfo');
-                var postTime = '';
-                var floorText = '';
-                if (postInfo) {
-                  var strongEl = postInfo.querySelector('strong');
-                  if (strongEl) {
-                    floorText = strongEl.innerText.replace(/\\s+/g, ' ').trim();
-                  }
-
-                  var emList = postInfo.querySelectorAll('em');
-                  emList.forEach(function(em) {
-                    var t = em.innerText.trim();
-                    if (t.indexOf('发表于') !== -1 || /\\d{4}-\\d{1,2}-\\d{1,2}/.test(t)) {
-                      postTime = t;
-                    }
-                  });
-                  if (!postTime) {
-                    var m = postInfo.innerText.match(/发表于\\s*[\\d\\-:\\s]+/);
-                    if (m) postTime = m[0].trim();
-                  }
-
-                  postInfo.style.display = 'none';
-                }
-
-                // Hide author sidebar
-                if (authorTd) {
-                  authorTd.style.display = 'none';
-                }
-
-                // Style table and content container
-                table.style.width = '600px';
-                table.style.display = 'block';
-                table.style.margin = '0 0 10px 0';
-                table.style.border = 'none';
-                table.style.background = '#ffffff';
-
-                contentTd.style.display = 'block';
-                contentTd.style.width = '600px';
-                contentTd.style.padding = '0';
-                contentTd.style.boxSizing = 'border-box';
-
-                // Insert compact card header: top line 12px to avatar, bottom line 6px to avatar
-                if (!contentTd.querySelector('.d2pdf-custom-header')) {
-                  var header = document.createElement('div');
-                  header.className = 'd2pdf-custom-header';
-                  header.style.cssText = 'display: flex !important; align-items: center !important; justify-content: space-between !important; ' +
-                    'padding-top: 12px !important; padding-bottom: 6px !important; padding-left: 14px !important; padding-right: 14px !important; ' +
-                    'width: 600px !important; box-sizing: border-box !important; ' +
-                    'border-top: 1px solid #e5e7eb !important; border-bottom: none !important; ' +
-                    'background: #ffffff !important; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;';
-
-                  // Left part: Avatar + Username
-                  var left = document.createElement('div');
-                  left.style.cssText = 'display: flex !important; align-items: center !important; flex: 1 !important; min-width: 0 !important;';
-
-                  if (avatarSrc) {
-                    var img = document.createElement('img');
-                    img.src = avatarSrc;
-                    img.style.cssText = 'width: 42px !important; height: 42px !important; min-width: 42px !important; min-height: 42px !important; border-radius: 50% !important; object-fit: cover !important; margin-right: 8px !important; display: block !important; border: 1px solid #e5e7eb !important;';
-                    left.appendChild(img);
-                  } else {
-                    var placeholder = document.createElement('div');
-                    placeholder.className = 'd2pdf-header-placeholder';
-                    placeholder.style.cssText = 'width: 42px !important; height: 42px !important; min-width: 42px !important; min-height: 42px !important; border-radius: 50% !important; background: #e0e7ff !important; color: #3730a3 !important; display: flex !important; align-items: center !important; justify-content: center !important; font-weight: bold !important; margin-right: 8px !important;';
-                    placeholder.style.fontSize = '${usernameSize}px';
-                    placeholder.innerText = username ? username.substring(0, 1).toUpperCase() : '?';
-                    left.appendChild(placeholder);
-                  }
-
-                  var name = document.createElement('span');
-                  name.className = 'd2pdf-header-username';
-                  name.style.cssText = 'font-weight: bold !important; color: #111827 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; margin-right: 8px !important;';
-                  name.style.fontSize = '${usernameSize}px';
-                  name.innerText = username || '用户';
-                  left.appendChild(name);
-
-                  header.appendChild(left);
-
-                  // Right part: Post Time + Floor
-                  var right = document.createElement('div');
-                  right.className = 'd2pdf-header-right';
-                  right.style.cssText = 'display: flex !important; align-items: center !important; gap: 8px !important; color: #6b7280 !important; flex-shrink: 0 !important;';
-                  right.style.fontSize = '${metaSize}px';
-
-                  if (postTime) {
-                    var timeSpan = document.createElement('span');
-                    timeSpan.className = 'd2pdf-header-time';
-                    timeSpan.style.cssText = 'color: #6b7280 !important; white-space: nowrap !important;';
-                    timeSpan.style.fontSize = '${metaSize}px';
-                    timeSpan.innerText = postTime;
-                    right.appendChild(timeSpan);
-                  }
-
-                  if (floorText) {
-                    var floorSpan = document.createElement('span');
-                    floorSpan.className = 'd2pdf-header-floor';
-                    floorSpan.style.cssText = 'font-weight: bold !important; color: #0369a1 !important; white-space: nowrap !important;';
-                    floorSpan.style.fontSize = '${floorSize}px';
-                    floorSpan.innerText = floorText;
-                    right.appendChild(floorSpan);
-                  }
-
-                  header.appendChild(right);
-
-                  contentTd.insertBefore(header, contentTd.firstChild);
-                }
-              });
-            }
-
-            // Update auxiliary font sizes dynamically on existing DOM elements
-            document.querySelectorAll('.d2pdf-header-username').forEach(function(el) {
-              el.style.fontSize = '${usernameSize}px';
-            });
-            document.querySelectorAll('.d2pdf-header-time').forEach(function(el) {
-              el.style.fontSize = '${metaSize}px';
-            });
-            document.querySelectorAll('.d2pdf-header-floor').forEach(function(el) {
-              el.style.fontSize = '${floorSize}px';
-            });
-            document.querySelectorAll('.d2pdf-header-placeholder').forEach(function(el) {
-              el.style.fontSize = '${usernameSize}px';
-            });
-            document.querySelectorAll('.d2pdf-header-right').forEach(function(el) {
-              el.style.fontSize = '${metaSize}px';
-            });
-            document.querySelectorAll('.postinfo strong, .postinfo strong a').forEach(function(el) {
-              el.style.fontSize = '${floorSize}px';
-            });
-            document.querySelectorAll('.postinfo em, .postinfo em span').forEach(function(el) {
-              el.style.fontSize = '${metaSize}px';
-            });
-            document.querySelectorAll('.postauthor cite, .postauthor cite a').forEach(function(el) {
-              el.style.fontSize = '${usernameSize}px';
-            });
-
-            // Handle topmost navigation bar: remove 4D4Y >> Discovery, show ONLY the thread title, enlarged!
-            var navEl = document.getElementById('nav') || document.querySelector('.nav');
-            var passedTitle = $jsTitle;
-            var finalTitle = passedTitle || '';
-            if (!finalTitle) {
-              var h1El = document.querySelector('#threadtitle h1, #threadtitle, h1, .threadtitle, #postlist h2');
-              if (h1El && h1El.innerText && h1El.innerText.trim()) {
-                finalTitle = h1El.innerText.trim();
-              } else if (document.title) {
-                finalTitle = document.title.split(' - ')[0].split(' _ ')[0].trim();
-              }
-            }
-
-            if (navEl) {
-              navEl.innerHTML = '';
-              var topTitleDiv = document.createElement('div');
-              topTitleDiv.className = 'd2pdf-top-title';
-              topTitleDiv.innerText = finalTitle;
-              navEl.appendChild(topTitleDiv);
-            } else if (finalTitle) {
-              var newNav = document.createElement('div');
-              newNav.id = 'nav';
-              newNav.className = 'nav';
-              var topTitleDiv = document.createElement('div');
-              topTitleDiv.className = 'd2pdf-top-title';
-              topTitleDiv.innerText = finalTitle;
-              newNav.appendChild(topTitleDiv);
-              var wrapEl = document.getElementById('wrap') || document.querySelector('.wrap') || document.body;
-              wrapEl.insertBefore(newNav, wrapEl.firstChild);
-            }
-
-            document.body.style.width = '${_pdfWidth}px';
-            document.body.style.margin = '0px';
-            document.body.style.padding = '0px';
-            document.body.style.textAlign = 'left';
-            document.documentElement.style.width = '${_pdfWidth}px';
-
-            var styleEl = document.createElement('style');
-            styleEl.innerHTML = `
-              html, body {
-                background: #ffffff !important;
-                background-color: #ffffff !important;
-                background-image: none !important;
-                text-align: left !important;
-                width: ${_pdfWidth}px !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                overflow-x: hidden !important;
-              }
-              #wrap, #postlist, .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
-                text-align: left !important;
-                width: ${_pdfWidth}px !important;
-                max-width: ${_pdfWidth}px !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                border: none !important;
-                background: #ffffff !important;
-                background-color: #ffffff !important;
-              }
-              table, tbody, tr, td, .postcontent, .postmessage, .t_msgfont, .t_msgfontfix, p, div, span, h1, h2, h3, h4 {
-                text-align: left !important;
-              }
-              /* Top navigation: keep ONLY thread title, magnified */
-              #nav, .nav {
-                display: block !important;
-                height: auto !important;
-                min-height: unset !important;
-                line-height: 1.4 !important;
-                padding-top: 10px !important;
-                padding-bottom: 12px !important;
-                padding-left: 14px !important;
-                padding-right: 14px !important;
-                margin: 0 !important;
-                background: transparent !important;
-                border: none !important;
-                text-align: left !important;
-              }
-              .d2pdf-top-title, #nav .d2pdf-top-title, .nav .d2pdf-top-title {
-                font-size: 200% !important;
-                line-height: 1.4 !important;
-                font-weight: bold !important;
-                color: #111827 !important;
-                text-align: left !important;
-                display: block !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                word-break: break-word !important;
-              }
-              .d2pdf-custom-header {
-                border-top: 1px solid #e5e7eb !important;
-                border-bottom: none !important;
-              }
-              .d2pdf-header-username {
-                font-size: ${usernameSize}px !important;
-              }
-              .d2pdf-header-time, .d2pdf-header-right {
-                font-size: ${metaSize}px !important;
-              }
-              .d2pdf-header-floor {
-                font-size: ${floorSize}px !important;
-              }
-              .d2pdf-header-placeholder {
-                font-size: ${usernameSize}px !important;
-              }
-              .postinfo strong, .postinfo strong a {
-                font-size: ${floorSize}px !important;
-              }
-              .postinfo em, .postinfo em span {
-                font-size: ${metaSize}px !important;
-              }
-              .postauthor cite, .postauthor cite a {
-                font-size: ${usernameSize}px !important;
-              }
-              $extraCss
-            `;
-            document.head.appendChild(styleEl);
-
-            var wrap = document.querySelector('.wrap') || document.querySelector('#wrap');
-            if (wrap) {
-              wrap.style.width = '${_pdfWidth}px';
-              wrap.style.margin = '0px';
-              wrap.style.padding = '0px';
-              wrap.style.textAlign = 'left';
-            }
-
-            var postlist = document.getElementById('postlist');
-            if (postlist) {
-              postlist.style.width = '${_pdfWidth}px';
-              postlist.style.margin = '0px';
-              postlist.style.padding = '0px';
-              postlist.style.textAlign = 'left';
-            }
-          })();
-        """);
+        // Inject dynamic template styles & DOM reconstruction
+        await controller.evaluateJavascript(source: injectionScript);
 
         await Future.delayed(const Duration(milliseconds: 500));
 
@@ -1466,6 +1163,7 @@ class _MainScreenState extends State<MainScreen> {
           item: item,
           renderWidth: _pdfWidth,
           initialFontSize: _fontSize,
+          initialTemplate: _selectedTemplate,
           onFontSizeChanged: (newSize) async {
             setState(() {
               _fontSize = newSize;
@@ -1479,6 +1177,12 @@ class _MainScreenState extends State<MainScreen> {
             });
             final prefs = await SharedPreferences.getInstance();
             await prefs.setInt('pdf_render_width', newWidth);
+          },
+          onTemplateChanged: (newTemplate) async {
+            setState(() {
+              _selectedTemplate = newTemplate;
+            });
+            await TemplateManager.setSelectedTemplateId(newTemplate.id);
           },
           onGeneratePdf: (threadItem) {
             _startGeneratePdf(threadItem);
@@ -2348,8 +2052,10 @@ class ThreadPreviewScreen extends StatefulWidget {
   final ForumThreadItem item;
   final int renderWidth;
   final int initialFontSize;
+  final LayoutTemplate initialTemplate;
   final ValueChanged<int> onFontSizeChanged;
   final ValueChanged<int>? onWidthChanged;
+  final ValueChanged<LayoutTemplate>? onTemplateChanged;
   final void Function(ForumThreadItem item) onGeneratePdf;
 
   const ThreadPreviewScreen({
@@ -2357,8 +2063,10 @@ class ThreadPreviewScreen extends StatefulWidget {
     required this.item,
     required this.renderWidth,
     required this.initialFontSize,
+    required this.initialTemplate,
     required this.onFontSizeChanged,
     this.onWidthChanged,
+    this.onTemplateChanged,
     required this.onGeneratePdf,
   });
 
@@ -2371,12 +2079,14 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
   double _progress = 0.0;
   late int _previewFontSize;
   late int _previewWidth;
+  late LayoutTemplate _previewTemplate;
 
   @override
   void initState() {
     super.initState();
     _previewFontSize = widget.initialFontSize;
     _previewWidth = widget.renderWidth;
+    _previewTemplate = widget.initialTemplate;
   }
 
   Future<void> _injectStyles(InAppWebViewController controller) async {
@@ -2386,469 +2096,19 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
     final int usernameSize = auxSizes['username']!;
     final int metaSize = auxSizes['meta']!;
     final int floorSize = auxSizes['floor']!;
-    final String jsTitle = jsonEncode(widget.item.title);
 
-    final bool is600 = (width == 600);
-    final String extraCss = is600
-        ? '''
-          .postauthor, td.postauthor {
-            display: none !important;
-          }
-          .postcontent, td.postcontent {
-            display: block !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            box-sizing: border-box !important;
-          }
-          .postmessage, .t_msgfont, .t_msgfontfix {
-            padding: 10px 14px 14px 14px !important;
-            box-sizing: border-box !important;
-            font-size: ${fontSize}px !important;
-            line-height: 1.65 !important;
-          }
-          img {
-            max-width: 100% !important;
-            height: auto !important;
-          }
-        '''
-        : '''
-          .postauthor, td.postauthor {
-            display: table-cell !important;
-            width: 160px !important;
-            max-width: 180px !important;
-          }
-          .postcontent, td.postcontent {
-            display: table-cell !important;
-            width: auto !important;
-            box-sizing: border-box !important;
-          }
-          .postauthor, .postauthor * {
-            text-align: left !important;
-          }
-          .postmessage, .t_msgfont, .t_msgfontfix {
-            font-size: ${fontSize}px !important;
-            line-height: 1.65 !important;
-          }
-          img {
-            max-width: 100% !important;
-            height: auto !important;
-          }
-        ''';
+    final injectionScript = TemplateRenderer.generateInjectionJs(
+      template: _previewTemplate,
+      width: width,
+      fontSize: fontSize,
+      usernameSize: usernameSize,
+      metaSize: metaSize,
+      floorSize: floorSize,
+      pageTitle: widget.item.title,
+      isPreview: true,
+    );
 
-    await controller.evaluateJavascript(source: """
-      (function() {
-        // Load lazy images
-        document.querySelectorAll('img[file]').forEach(function(img) {
-          if (img.getAttribute('file')) {
-            img.src = img.getAttribute('file');
-          }
-        });
-
-        var hideSelectors = [
-          '#header', '#umenu', '#menu', '#footer',
-          '.postactions', '.modact', '#quickpost',
-          '#postlist_act', '.postbtn', '#newspecial', '#post_reply',
-          '.threadactions', '#visitedforums', '.forumcontrol', '#f_post',
-          'form[action*="post.php"]'
-        ];
-        hideSelectors.forEach(function(sel) {
-          document.querySelectorAll(sel).forEach(function(el) {
-            el.style.display = 'none';
-          });
-        });
-
-        // Hide all elements following #postlist (such as return to list, reply form, footer)
-        var postlistEl = document.getElementById('postlist');
-        if (postlistEl && postlistEl.parentNode) {
-          var sib = postlistEl.nextElementSibling;
-          while (sib) {
-            var next = sib.nextElementSibling;
-            sib.remove();
-            sib = next;
-          }
-        }
-
-        // Hide top & bottom reply/newpost buttons and '返回列表'
-        document.querySelectorAll('a, button, span, div, p').forEach(function(el) {
-          var t = el.innerText ? el.innerText.trim() : '';
-          if (t === '发表回复' || t === '发表新帖' || t === '发新帖' || t === '发帖' || t === '回复' ||
-              t === '返回列表' || t.indexOf('返回列表') !== -1) {
-            var container = el.closest('.pages_btns') || el.closest('.postbtn') || el.closest('.forumcontrol') || el.closest('#postlist_act') || el;
-            if (container) container.style.display = 'none';
-          }
-        });
-
-        document.querySelectorAll('a').forEach(function(a) {
-          if (a.innerText && a.innerText.indexOf('只看该作者') !== -1) {
-            a.style.display = 'none';
-          }
-        });
-
-        var is600 = ($width === 600);
-        var meta = document.querySelector('meta[name="viewport"]');
-        if (!meta) {
-          meta = document.createElement('meta');
-          meta.name = 'viewport';
-          document.head.appendChild(meta);
-        }
-        meta.setAttribute('content', is600
-          ? 'width=device-width, initial-scale=1.0, maximum-scale=3.0, user-scalable=yes'
-          : 'width=' + $width + ', initial-scale=1.0, maximum-scale=3.0, user-scalable=yes'
-        );
-
-        document.documentElement.style.background = '#ffffff';
-        document.documentElement.style.backgroundColor = '#ffffff';
-        document.documentElement.style.backgroundImage = 'none';
-        document.body.style.background = '#ffffff';
-        document.body.style.backgroundColor = '#ffffff';
-        document.body.style.backgroundImage = 'none';
-
-        var tables = document.querySelectorAll('#postlist table[id^="pid"], table[id^="pid"]');
-        if (tables.length === 0) {
-          tables = document.querySelectorAll('table.viewthread, #postlist > table');
-        }
-
-        if (is600) {
-          tables.forEach(function(table) {
-            var authorTd = table.querySelector('.postauthor');
-            var contentTd = table.querySelector('.postcontent');
-            if (!contentTd) return;
-
-            // Extract Avatar
-            var avatarSrc = '';
-            if (authorTd) {
-              var avImg = authorTd.querySelector('.avatar img') || authorTd.querySelector('img[src*="avatar"]') || authorTd.querySelector('img');
-              if (avImg) {
-                avatarSrc = avImg.getAttribute('file') || avImg.src;
-              }
-            }
-
-            // Extract Username
-            var username = '';
-            if (authorTd) {
-              var userLink = authorTd.querySelector('.postinfo a') || authorTd.querySelector('cite a') || authorTd.querySelector('a[href*="space.php"]');
-              if (userLink) {
-                username = userLink.innerText.trim();
-              }
-            }
-            if (!username && contentTd) {
-              var cl = contentTd.querySelector('a[href*="space.php"]');
-              if (cl) username = cl.innerText.trim();
-            }
-
-            // Extract Post Time & Floor
-            var postInfo = contentTd.querySelector('.postinfo');
-            var postTime = '';
-            var floorText = '';
-            if (postInfo) {
-              var strongEl = postInfo.querySelector('strong');
-              if (strongEl) {
-                floorText = strongEl.innerText.replace(/\\s+/g, ' ').trim();
-              }
-
-              var emList = postInfo.querySelectorAll('em');
-              emList.forEach(function(em) {
-                var t = em.innerText.trim();
-                if (t.indexOf('发表于') !== -1 || /\\d{4}-\\d{1,2}-\\d{1,2}/.test(t)) {
-                  postTime = t;
-                }
-              });
-              if (!postTime) {
-                var m = postInfo.innerText.match(/发表于\\s*[\\d\\-:\\s]+/);
-                if (m) postTime = m[0].trim();
-              }
-
-              postInfo.style.display = 'none';
-            }
-
-            if (authorTd) {
-              authorTd.style.display = 'none';
-            }
-
-            table.style.width = '100%';
-            table.style.display = 'block';
-            table.style.margin = '0 0 10px 0';
-            table.style.border = 'none';
-            table.style.background = '#ffffff';
-
-            contentTd.style.display = 'block';
-            contentTd.style.width = '100%';
-            contentTd.style.padding = '0';
-            contentTd.style.boxSizing = 'border-box';
-
-            var existingHeader = contentTd.querySelector('.d2pdf-custom-header');
-            if (existingHeader) {
-              existingHeader.style.display = 'flex';
-            } else {
-              var header = document.createElement('div');
-              header.className = 'd2pdf-custom-header';
-              header.style.cssText = 'display: flex !important; align-items: center !important; justify-content: space-between !important; ' +
-                'padding-top: 12px !important; padding-bottom: 6px !important; padding-left: 14px !important; padding-right: 14px !important; ' +
-                'width: 100% !important; box-sizing: border-box !important; ' +
-                'border-top: 1px solid #e5e7eb !important; border-bottom: none !important; ' +
-                'background: #ffffff !important; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;';
-
-              var left = document.createElement('div');
-              left.className = 'd2pdf-header-left';
-              left.style.cssText = 'display: flex !important; align-items: center !important; flex: 1 !important; min-width: 0 !important;';
-
-              if (avatarSrc) {
-                var img = document.createElement('img');
-                img.src = avatarSrc;
-                img.style.cssText = 'width: 42px !important; height: 42px !important; min-width: 42px !important; min-height: 42px !important; border-radius: 50% !important; object-fit: cover !important; margin-right: 8px !important; display: block !important; border: 1px solid #e5e7eb !important;';
-                left.appendChild(img);
-              } else {
-                var placeholder = document.createElement('div');
-                placeholder.className = 'd2pdf-header-placeholder';
-                placeholder.style.cssText = 'width: 42px !important; height: 42px !important; min-width: 42px !important; min-height: 42px !important; border-radius: 50% !important; background: #e0e7ff !important; color: #3730a3 !important; display: flex !important; align-items: center !important; justify-content: center !important; font-weight: bold !important; margin-right: 8px !important;';
-                placeholder.style.fontSize = '${usernameSize}px';
-                placeholder.innerText = username ? username.substring(0, 1).toUpperCase() : '?';
-                left.appendChild(placeholder);
-              }
-
-              var name = document.createElement('span');
-              name.className = 'd2pdf-header-username';
-              name.style.cssText = 'font-weight: bold !important; color: #111827 !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; margin-right: 8px !important;';
-              name.style.fontSize = '${usernameSize}px';
-              name.innerText = username || '用户';
-              left.appendChild(name);
-
-              header.appendChild(left);
-
-              var right = document.createElement('div');
-              right.className = 'd2pdf-header-right';
-              right.style.cssText = 'display: flex !important; align-items: center !important; gap: 8px !important; color: #6b7280 !important; flex-shrink: 0 !important;';
-              right.style.fontSize = '${metaSize}px';
-
-              if (postTime) {
-                var timeSpan = document.createElement('span');
-                timeSpan.className = 'd2pdf-header-time';
-                timeSpan.style.cssText = 'color: #6b7280 !important; white-space: nowrap !important;';
-                timeSpan.style.fontSize = '${metaSize}px';
-                timeSpan.innerText = postTime;
-                right.appendChild(timeSpan);
-              }
-
-              if (floorText) {
-                var floorSpan = document.createElement('span');
-                floorSpan.className = 'd2pdf-header-floor';
-                floorSpan.style.cssText = 'font-weight: bold !important; color: #0369a1 !important; white-space: nowrap !important;';
-                floorSpan.style.fontSize = '${floorSize}px';
-                floorSpan.innerText = floorText;
-                right.appendChild(floorSpan);
-              }
-
-              header.appendChild(right);
-              contentTd.insertBefore(header, contentTd.firstChild);
-            }
-          });
-        } else {
-          // Restore standard desktop layout
-          tables.forEach(function(table) {
-            var authorTd = table.querySelector('.postauthor');
-            var contentTd = table.querySelector('.postcontent');
-            if (!contentTd) return;
-
-            var postInfo = contentTd.querySelector('.postinfo');
-            if (postInfo) postInfo.style.display = '';
-            if (authorTd) authorTd.style.display = '';
-
-            table.style.width = '${width}px';
-            table.style.maxWidth = '${width}px';
-            table.style.display = '';
-            table.style.margin = '0 0 10px 0';
-            table.style.border = '';
-            table.style.background = '#ffffff';
-
-            contentTd.style.display = '';
-            contentTd.style.width = '';
-            contentTd.style.padding = '';
-            contentTd.style.boxSizing = '';
-
-            var existingHeader = contentTd.querySelector('.d2pdf-custom-header');
-            if (existingHeader) {
-              existingHeader.style.display = 'none';
-            }
-          });
-        }
-
-        if (is600) {
-          document.body.style.width = '100%';
-          document.documentElement.style.width = '100%';
-          var wrap = document.querySelector('.wrap') || document.querySelector('#wrap');
-          if (wrap) {
-            wrap.style.width = '100%';
-            wrap.style.margin = '0';
-            wrap.style.padding = '0';
-          }
-          var postlist = document.getElementById('postlist');
-          if (postlist) {
-            postlist.style.width = '100%';
-            postlist.style.margin = '0';
-            postlist.style.padding = '0';
-          }
-        } else {
-          document.body.style.width = '${width}px';
-          document.documentElement.style.width = '${width}px';
-          var wrap = document.querySelector('.wrap') || document.querySelector('#wrap');
-          if (wrap) {
-            wrap.style.width = '${width}px';
-            wrap.style.margin = '0';
-            wrap.style.padding = '0';
-          }
-          var postlist = document.getElementById('postlist');
-          if (postlist) {
-            postlist.style.width = '${width}px';
-            postlist.style.margin = '0';
-            postlist.style.padding = '0';
-          }
-        }
-
-        // Update auxiliary font sizes dynamically on existing DOM elements
-        document.querySelectorAll('.d2pdf-header-username').forEach(function(el) {
-          el.style.fontSize = '${usernameSize}px';
-        });
-        document.querySelectorAll('.d2pdf-header-time').forEach(function(el) {
-          el.style.fontSize = '${metaSize}px';
-        });
-        document.querySelectorAll('.d2pdf-header-floor').forEach(function(el) {
-          el.style.fontSize = '${floorSize}px';
-        });
-        document.querySelectorAll('.d2pdf-header-placeholder').forEach(function(el) {
-          el.style.fontSize = '${usernameSize}px';
-        });
-        document.querySelectorAll('.d2pdf-header-right').forEach(function(el) {
-          el.style.fontSize = '${metaSize}px';
-        });
-        document.querySelectorAll('.postinfo strong, .postinfo strong a').forEach(function(el) {
-          el.style.fontSize = '${floorSize}px';
-        });
-        document.querySelectorAll('.postinfo em, .postinfo em span').forEach(function(el) {
-          el.style.fontSize = '${metaSize}px';
-        });
-        document.querySelectorAll('.postauthor cite, .postauthor cite a').forEach(function(el) {
-          el.style.fontSize = '${usernameSize}px';
-        });
-
-        // Handle topmost navigation bar: remove 4D4Y >> Discovery, show ONLY the thread title, enlarged!
-        var navEl = document.getElementById('nav') || document.querySelector('.nav');
-        var passedTitle = $jsTitle;
-        var finalTitle = passedTitle || '';
-        if (!finalTitle) {
-          var h1El = document.querySelector('#threadtitle h1, #threadtitle, h1, .threadtitle, #postlist h2');
-          if (h1El && h1El.innerText && h1El.innerText.trim()) {
-            finalTitle = h1El.innerText.trim();
-          } else if (document.title) {
-            finalTitle = document.title.split(' - ')[0].split(' _ ')[0].trim();
-          }
-        }
-
-        if (navEl) {
-          navEl.innerHTML = '';
-          var topTitleDiv = document.createElement('div');
-          topTitleDiv.className = 'd2pdf-top-title';
-          topTitleDiv.innerText = finalTitle;
-          navEl.appendChild(topTitleDiv);
-        } else if (finalTitle) {
-          var newNav = document.createElement('div');
-          newNav.id = 'nav';
-          newNav.className = 'nav';
-          var topTitleDiv = document.createElement('div');
-          topTitleDiv.className = 'd2pdf-top-title';
-          topTitleDiv.innerText = finalTitle;
-          newNav.appendChild(topTitleDiv);
-          var wrapEl = document.getElementById('wrap') || document.querySelector('.wrap') || document.body;
-          wrapEl.insertBefore(newNav, wrapEl.firstChild);
-        }
-
-        var styleEl = document.getElementById('d2pdf-custom-preview-style');
-        if (!styleEl) {
-          styleEl = document.createElement('style');
-          styleEl.id = 'd2pdf-custom-preview-style';
-          document.head.appendChild(styleEl);
-        }
-        styleEl.innerHTML = `
-          html, body {
-            background: #ffffff !important;
-            background-color: #ffffff !important;
-            background-image: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            text-align: left !important;
-            width: ${is600 ? '100%' : '${width}px'} !important;
-          }
-          #wrap, #postlist, .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
-            width: ${is600 ? '100%' : '${width}px'} !important;
-            max-width: ${is600 ? '100%' : '${width}px'} !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            border: none !important;
-            box-sizing: border-box !important;
-            background: #ffffff !important;
-            background-color: #ffffff !important;
-          }
-          table, tbody, tr, td, .postcontent, .postmessage, .t_msgfont, .t_msgfontfix, p, div, span, h1, h2, h3, h4 {
-            text-align: left !important;
-          }
-          /* Top navigation: keep ONLY thread title, magnified */
-          #nav, .nav {
-            display: block !important;
-            height: auto !important;
-            min-height: unset !important;
-            line-height: 1.4 !important;
-            padding-top: 10px !important;
-            padding-bottom: 12px !important;
-            padding-left: 14px !important;
-            padding-right: 14px !important;
-            margin: 0 !important;
-            background: transparent !important;
-            border: none !important;
-            text-align: left !important;
-          }
-          .d2pdf-top-title, #nav .d2pdf-top-title, .nav .d2pdf-top-title {
-            font-size: 200% !important;
-            line-height: 1.4 !important;
-            font-weight: bold !important;
-            color: #111827 !important;
-            text-align: left !important;
-            display: block !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            word-break: break-word !important;
-          }
-          .d2pdf-custom-header {
-            border-top: 1px solid #e5e7eb !important;
-            border-bottom: none !important;
-          }
-          .d2pdf-header-username {
-            font-size: ${usernameSize}px !important;
-          }
-          .d2pdf-header-time, .d2pdf-header-right {
-            font-size: ${metaSize}px !important;
-          }
-          .d2pdf-header-floor {
-            font-size: ${floorSize}px !important;
-          }
-          .d2pdf-header-placeholder {
-            font-size: ${usernameSize}px !important;
-          }
-          .postinfo strong, .postinfo strong a {
-            font-size: ${floorSize}px !important;
-          }
-          .postinfo em, .postinfo em span {
-            font-size: ${metaSize}px !important;
-          }
-          .postauthor cite, .postauthor cite a {
-            font-size: ${usernameSize}px !important;
-          }
-          .postmessage, .t_msgfont, .t_msgfontfix {
-            font-size: ${fontSize}px !important;
-            line-height: 1.65 !important;
-          }
-          $extraCss
-        `;
-      })();
-    """);
+    await controller.evaluateJavascript(source: injectionScript);
   }
 
     void _updateFontSize(int newSize) {
@@ -2971,6 +2231,122 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
                 },
               ),
               const Spacer(),
+              // Template selection switcher & manager
+              PopupMenuButton<String>(
+                tooltip: '切换/管理排版模板',
+                onSelected: (val) async {
+                  if (val == '__manage__') {
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (ctx) => TemplateManageScreen(
+                          initialSelectedTemplate: _previewTemplate,
+                          onTemplateSelected: (t) {
+                            setState(() => _previewTemplate = t);
+                            widget.onTemplateChanged?.call(t);
+                            if (_webViewController != null) {
+                              _injectStyles(_webViewController!);
+                            }
+                          },
+                        ),
+                      ),
+                    );
+                    final active = await TemplateManager.getActiveTemplate();
+                    setState(() => _previewTemplate = active);
+                    widget.onTemplateChanged?.call(active);
+                    if (_webViewController != null) {
+                      _injectStyles(_webViewController!);
+                    }
+                  } else {
+                    final all = await TemplateManager.getAllTemplates();
+                    final found = all.firstWhere((t) => t.id == val, orElse: () => _previewTemplate);
+                    setState(() => _previewTemplate = found);
+                    widget.onTemplateChanged?.call(found);
+                    if (_webViewController != null) {
+                      _injectStyles(_webViewController!);
+                    }
+                  }
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem<String>(
+                    value: TemplateManager.defaultCard.id,
+                    child: Row(
+                      children: [
+                        Icon(
+                          _previewTemplate.id == TemplateManager.defaultCard.id ? Icons.check_circle : Icons.radio_button_unchecked,
+                          size: 16,
+                          color: const Color(0xFF192D50),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('经典移动卡片', style: TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: TemplateManager.fullForum.id,
+                    child: Row(
+                      children: [
+                        Icon(
+                          _previewTemplate.id == TemplateManager.fullForum.id ? Icons.check_circle : Icons.radio_button_unchecked,
+                          size: 16,
+                          color: const Color(0xFF192D50),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('经典左右分栏', style: TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: TemplateManager.minimalReader.id,
+                    child: Row(
+                      children: [
+                        Icon(
+                          _previewTemplate.id == TemplateManager.minimalReader.id ? Icons.check_circle : Icons.radio_button_unchecked,
+                          size: 16,
+                          color: const Color(0xFF192D50),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('极简纯享阅读', style: TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem<String>(
+                    value: '__manage__',
+                    child: Row(
+                      children: [
+                        Icon(Icons.auto_awesome, size: 16, color: Color(0xFF192D50)),
+                        SizedBox(width: 8),
+                        Text('模板库与 AI 创编...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ],
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blueGrey.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.blueGrey.shade200, width: 0.8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.style, size: 14, color: Color(0xFF192D50)),
+                      const SizedBox(width: 4),
+                      Text(
+                        _previewTemplate.name,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF192D50),
+                        ),
+                      ),
+                      const Icon(Icons.arrow_drop_down, size: 16, color: Color(0xFF192D50)),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
               // Width selection switcher
               PopupMenuButton<int>(
                 tooltip: '切换排版宽度',
