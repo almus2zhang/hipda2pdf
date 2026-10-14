@@ -57,6 +57,31 @@ class MainActivity: FlutterActivity() {
                     KeepAliveService.stop(this)
                     result.success(true)
                 }
+                "canDrawOverlays" -> {
+                    result.success(FloatingBubbleManager.canDrawOverlays(this))
+                }
+                "requestOverlayPermission" -> {
+                    FloatingBubbleManager.requestOverlayPermission(this)
+                    result.success(true)
+                }
+                "showFloatingBubble" -> {
+                    val title = call.argument<String>("title") ?: "HiPDA D2PDF"
+                    val content = call.argument<String>("content") ?: "正在处理..."
+                    FloatingBubbleManager.show(this, title, content)
+                    result.success(true)
+                }
+                "updateFloatingBubble" -> {
+                    val title = call.argument<String>("title") ?: "HiPDA D2PDF"
+                    val content = call.argument<String>("content") ?: "正在处理..."
+                    val progress = call.argument<Int>("progress") ?: -1
+                    val max = call.argument<Int>("max") ?: -1
+                    FloatingBubbleManager.update(title, content, progress, max)
+                    result.success(true)
+                }
+                "hideFloatingBubble" -> {
+                    FloatingBubbleManager.hide()
+                    result.success(true)
+                }
                 else -> result.notImplemented()
             }
         }

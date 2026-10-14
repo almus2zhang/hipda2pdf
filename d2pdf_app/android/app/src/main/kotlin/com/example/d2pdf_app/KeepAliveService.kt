@@ -32,7 +32,7 @@ class KeepAliveService : Service() {
         private var wakeLock: PowerManager.WakeLock? = null
         private var wifiLock: WifiManager.WifiLock? = null
 
-        fun start(context: Context, title: String, content: String) {
+        fun start(context: Context, title: String, content: String, showBubble: Boolean = true) {
             isRunning = true
             try {
                 if (wakeLock == null) {
@@ -60,6 +60,10 @@ class KeepAliveService : Service() {
                 }
             } catch (_: Exception) {}
 
+            if (showBubble && FloatingBubbleManager.canDrawOverlays(context)) {
+                FloatingBubbleManager.show(context, title, content)
+            }
+
             val intent = Intent(context, KeepAliveService::class.java).apply {
                 action = ACTION_START
                 putExtra("title", title)
@@ -73,6 +77,7 @@ class KeepAliveService : Service() {
         }
 
         fun update(context: Context, title: String, content: String, progress: Int, max: Int) {
+            FloatingBubbleManager.update(title, content, progress, max)
             val intent = Intent(context, KeepAliveService::class.java).apply {
                 action = ACTION_UPDATE
                 putExtra("title", title)
@@ -85,6 +90,7 @@ class KeepAliveService : Service() {
 
         fun stop(context: Context) {
             isRunning = false
+            FloatingBubbleManager.hide()
             try {
                 if (wakeLock?.isHeld == true) {
                     wakeLock?.release()
@@ -196,6 +202,7 @@ class KeepAliveService : Service() {
 
     override fun onDestroy() {
         isRunning = false
+        FloatingBubbleManager.hide()
         try {
             if (wakeLock?.isHeld == true) {
                 wakeLock?.release()

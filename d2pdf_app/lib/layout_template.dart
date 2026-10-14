@@ -529,6 +529,9 @@ class TemplateManager {
     await prefs.setString(_kSelectedTemplateKey, id);
   }
 
+  /// 设置当前选中的模板 ID (alias)
+  static Future<void> setActiveTemplate(String id) => setSelectedTemplateId(id);
+
   /// 获取当前生效的模板对象
   static Future<LayoutTemplate> getActiveTemplate() async {
     final activeId = await getSelectedTemplateId();

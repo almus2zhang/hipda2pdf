@@ -112,6 +112,7 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   LayoutTemplate _selectedTemplate = TemplateManager.defaultCard;
+  bool _enableFloatingBubble = true;
 
   Future<void> _checkSavedLoginState() async {
     final prefs = await SharedPreferences.getInstance();
@@ -132,6 +133,8 @@ class _MainScreenState extends State<MainScreen> {
       _fontSize = 16;
     }
 
+    _enableFloatingBubble = prefs.getBool('enable_floating_bubble') ?? true;
+
     final activeTemplate = await TemplateManager.getActiveTemplate();
     _selectedTemplate = activeTemplate;
 
@@ -143,6 +146,7 @@ class _MainScreenState extends State<MainScreen> {
     setState(() {
       _isLoggedIn = hasCookie;
       _selectedTemplate = activeTemplate;
+      _enableFloatingBubble = _enableFloatingBubble;
     });
 
     if (hasCookie && _converterWebViewController != null) {
@@ -479,9 +483,14 @@ class _MainScreenState extends State<MainScreen> {
 
   // Dialog to configure PDF width & font size
   Future<void> _openSettingsDialog() async {
+    final allTemplates = await TemplateManager.getAllTemplates();
+    LayoutTemplate tempTemplate = _selectedTemplate;
     int tempWidth = _pdfWidth;
     int tempFontSize = _fontSize;
+    bool tempEnableFloatingBubble = _enableFloatingBubble;
+    bool hasOverlayPerm = await D2PdfConverter.canDrawOverlays();
 
+    if (!mounted) return;
     final shouldSave = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -539,9 +548,9 @@ class _MainScreenState extends State<MainScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: Colors.blueGrey.shade50,
+                    color: const Color(0xFF192D50).withOpacity(0.06),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blueGrey.shade200),
+                    border: Border.all(color: const Color(0xFF192D50).withOpacity(0.2)),
                   ),
                   child: Row(
                     children: [
@@ -549,16 +558,59 @@ class _MainScreenState extends State<MainScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          _selectedTemplate.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          tempTemplate.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF192D50)),
                         ),
                       ),
-                      Text(
-                        _selectedTemplate.isBuiltin ? '内置预设' : '自定义模板',
-                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF192D50).withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          tempTemplate.isBuiltin ? '内置预设' : '自定义模板',
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF192D50), fontWeight: FontWeight.w500),
+                        ),
                       ),
                     ],
                   ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  '点击切换模板：',
+                  style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: allTemplates.map((tpl) {
+                    final isSelected = tpl.id == tempTemplate.id;
+                    return ChoiceChip(
+                      avatar: Icon(
+                        isSelected ? Icons.check_circle : (tpl.isBuiltin ? Icons.style : Icons.brush),
+                        size: 14,
+                        color: isSelected ? Colors.white : const Color(0xFF192D50),
+                      ),
+                      label: Text(tpl.name),
+                      selected: isSelected,
+                      selectedColor: const Color(0xFF192D50),
+                      backgroundColor: Colors.grey.shade100,
+                      labelStyle: TextStyle(
+                        color: isSelected ? Colors.white : Colors.black87,
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontSize: 12,
+                      ),
+                      onSelected: (selected) {
+                        if (selected) {
+                          setDialogState(() {
+                            tempTemplate = tpl;
+                          });
+                        }
+                      },
+                    );
+                  }).toList(),
                 ),
                 const Divider(height: 24),
                 const Text(
@@ -626,6 +678,38 @@ class _MainScreenState extends State<MainScreen> {
                     },
                   );
                 }),
+                const Divider(height: 24),
+                const Text(
+                  '后台运行与保活：',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                const SizedBox(height: 6),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  title: const Text('启用屏幕悬浮球保活', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                  subtitle: Text(
+                    hasOverlayPerm
+                        ? '切到后台或息屏时显示迷你悬浮球，保持系统渲染管道活跃不中断'
+                        : '点击将请求悬浮窗权限。开启后可防止切后台时系统挂起渲染',
+                    style: TextStyle(fontSize: 11, color: hasOverlayPerm ? Colors.grey.shade600 : Colors.orange.shade800),
+                  ),
+                  value: tempEnableFloatingBubble,
+                  onChanged: (val) async {
+                    if (val && !hasOverlayPerm) {
+                      await D2PdfConverter.requestOverlayPermission();
+                      final granted = await D2PdfConverter.canDrawOverlays();
+                      setDialogState(() {
+                        hasOverlayPerm = granted;
+                        tempEnableFloatingBubble = val;
+                      });
+                    } else {
+                      setDialogState(() {
+                        tempEnableFloatingBubble = val;
+                      });
+                    }
+                  },
+                ),
               ],
             ),
           ),
@@ -646,21 +730,29 @@ class _MainScreenState extends State<MainScreen> {
 
     if (shouldSave == true) {
       final prefs = await SharedPreferences.getInstance();
+      if (tempTemplate.id != _selectedTemplate.id) {
+        await TemplateManager.setActiveTemplate(tempTemplate.id);
+        setState(() {
+          _selectedTemplate = tempTemplate;
+        });
+      }
       await prefs.setInt('pdf_render_width', tempWidth);
       await prefs.setInt('pdf_render_font_size', tempFontSize);
+      await prefs.setBool('enable_floating_bubble', tempEnableFloatingBubble);
       setState(() {
         _pdfWidth = tempWidth;
         _fontSize = tempFontSize;
+        _enableFloatingBubble = tempEnableFloatingBubble;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('已保存设置：宽度 ${tempWidth}px，字号 ${tempFontSize}px')),
+          SnackBar(content: Text('已保存设置：模板 [${tempTemplate.name}] · 宽度 ${tempWidth}px · 字号 ${tempFontSize}px')),
         );
       }
     }
   }
 
-  void _finishCancellation(List<File> pagePdfs) {
+  void _finishCancellation(List<File> pagePdfs, {bool isBatch = false}) {
     for (final f in pagePdfs) {
       if (f.existsSync()) {
         try {
@@ -668,17 +760,19 @@ class _MainScreenState extends State<MainScreen> {
         } catch (_) {}
       }
     }
-    D2PdfConverter.stopKeepAlive();
-    setState(() {
-      _isConverting = false;
-      _isBatchConverting = false;
-      _isCancelRequested = false;
-      _conversionStatus = '已取消生成';
-    });
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('已取消本次生成任务')),
-      );
+    if (!isBatch) {
+      D2PdfConverter.stopKeepAlive();
+      setState(() {
+        _isConverting = false;
+        _isBatchConverting = false;
+        _isCancelRequested = false;
+        _conversionStatus = '已取消生成';
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('已取消本次生成任务')),
+        );
+      }
     }
   }
 
@@ -701,6 +795,7 @@ class _MainScreenState extends State<MainScreen> {
       await D2PdfConverter.startKeepAlive(
         title: 'HiPDA D2PDF 正在生成',
         content: item.title,
+        showBubble: _enableFloatingBubble,
       );
     } else {
       setState(() {
@@ -731,7 +826,7 @@ class _MainScreenState extends State<MainScreen> {
       await _loadUrlInController(controller, page1Url);
 
       if (_isCancelRequested) {
-        _finishCancellation([]);
+        _finishCancellation([], isBatch: isBatch);
         return null;
       }
 
@@ -937,13 +1032,13 @@ class _MainScreenState extends State<MainScreen> {
         pagePdfs.add(pagePdfFile);
 
         if (_isCancelRequested) {
-          _finishCancellation(pagePdfs);
+          _finishCancellation(pagePdfs, isBatch: isBatch);
           return null;
         }
       }
 
       if (_isCancelRequested) {
-        _finishCancellation(pagePdfs);
+        _finishCancellation(pagePdfs, isBatch: isBatch);
         return null;
       }
 
@@ -1011,7 +1106,7 @@ class _MainScreenState extends State<MainScreen> {
       return finalPdfFile;
     } catch (e) {
       if (_isCancelRequested) {
-        _finishCancellation([]);
+        _finishCancellation([], isBatch: isBatch);
         return null;
       }
       if (!isBatch) {
@@ -1034,16 +1129,64 @@ class _MainScreenState extends State<MainScreen> {
     _convertSingleThreadToPdf(item, isBatch: false);
   }
 
-  void _confirmStartBatchGenerate() {
+  Future<void> _confirmStartBatchGenerate() async {
     if (_selectedItems.isEmpty) return;
     final total = _selectedItems.length;
+    final hasOverlayPerm = await D2PdfConverter.canDrawOverlays();
 
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('开始批量生成 PDF'),
-        content: Text(
-          '已选定 $total 个帖子进行批量生成。\n\n批量生成时应用已启动前台保活服务与唤醒锁，支持息屏与后台平稳运行。\n\n是否立即开始？',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('已选定 $total 个帖子进行批量生成。\n\n批量生成时已启动系统前台保活服务与唤醒锁。'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: hasOverlayPerm ? Colors.green.shade50 : Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: hasOverlayPerm ? Colors.green.shade200 : Colors.amber.shade300),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    hasOverlayPerm ? Icons.check_circle : Icons.info_outline,
+                    size: 18,
+                    color: hasOverlayPerm ? Colors.green.shade700 : Colors.amber.shade900,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      hasOverlayPerm
+                          ? '悬浮球保活已就绪：切到后台或息屏时悬浮球将保持渲染管道活跃并显示进度。'
+                          : '建议开启悬浮窗权限：切后台时可避免系统冻结 WebView 渲染管线。',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: hasOverlayPerm ? Colors.green.shade800 : Colors.amber.shade900,
+                      ),
+                    ),
+                  ),
+                  if (!hasOverlayPerm)
+                    TextButton(
+                      onPressed: () async {
+                        await D2PdfConverter.requestOverlayPermission();
+                      },
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text('去开启', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -1083,8 +1226,9 @@ class _MainScreenState extends State<MainScreen> {
     });
 
     await D2PdfConverter.startKeepAlive(
-      title: 'HiPDA D2PDF 批量生成中',
+      title: 'HiPDA 批量导出 ($totalCount 篇)',
       content: '准备生成 (0/$totalCount)',
+      showBubble: _enableFloatingBubble,
     );
 
     for (int i = 0; i < totalCount; i++) {
@@ -1101,7 +1245,7 @@ class _MainScreenState extends State<MainScreen> {
       });
 
       await D2PdfConverter.updateKeepAlive(
-        title: 'HiPDA 批量生成 ($currentNum/$totalCount)',
+        title: 'HiPDA 批量 ($currentNum/$totalCount)',
         content: item.title,
         progress: currentNum,
         max: totalCount,
@@ -1120,7 +1264,7 @@ class _MainScreenState extends State<MainScreen> {
 
       if (result != null) {
         _batchSuccessTitles.add(item.title);
-      } else {
+      } else if (!_isCancelRequested) {
         _batchFailedTitles.add(item.title);
       }
     }
@@ -1129,35 +1273,51 @@ class _MainScreenState extends State<MainScreen> {
 
     final isCancelled = _isCancelRequested;
     final successCount = _batchSuccessTitles.length;
+    final pendingCount = totalCount - successCount;
     final failCount = _batchFailedTitles.length;
 
     setState(() {
       _isConverting = false;
       _isBatchConverting = false;
       _isCancelRequested = false;
-      _conversionProgress = 1.0;
+      _conversionProgress = isCancelled ? (totalCount > 0 ? successCount / totalCount : 0.0) : 1.0;
       _conversionStatus = isCancelled
-          ? '批量生成已取消 (成功: $successCount, 失败/未完成: ${totalCount - successCount})'
-          : '批量生成完毕！成功 $successCount 篇，失败 $failCount 篇';
+          ? '批量生成已取消：已生成 $successCount 个，未生成 $pendingCount 个'
+          : '批量生成完毕！成功 $successCount 个，失败 $failCount 个';
     });
 
     _exitMultiSelectMode();
 
     if (mounted) {
+      if (isCancelled) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('批量任务已取消：已生成 $successCount 个，未生成 $pendingCount 个'),
+            backgroundColor: Colors.orange.shade800,
+          ),
+        );
+      }
       showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: Text(isCancelled ? '批量生成已中止' : '批量生成已完成'),
+          title: Text(isCancelled ? '批量任务已取消' : '批量生成已完成'),
           content: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  '任务概览：\n总共选定: $totalCount 篇\n成功生成: $successCount 篇\n失败/跳过: $failCount 篇\n\nPDF 文件均已保存至手机 Download/D2PDF 目录。',
+                  isCancelled
+                      ? '已为您停止批量任务：\n\n• 任务总数: $totalCount 篇\n• 已生成: $successCount 篇\n• 未生成: $pendingCount 篇\n\n已生成的 PDF 文件已保存在手机 Download/D2PDF 目录。'
+                      : '任务概览：\n总共选定: $totalCount 篇\n成功生成: $successCount 篇\n失败/跳过: $failCount 篇\n\nPDF 文件均已保存至手机 Download/D2PDF 目录。',
                   style: const TextStyle(fontSize: 14, height: 1.5),
                 ),
-                if (_batchFailedTitles.isNotEmpty) ...[
+                if (_batchSuccessTitles.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  const Text('已成功生成列表：', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                  ..._batchSuccessTitles.map((t) => Text('✓ $t', style: const TextStyle(fontSize: 12, color: Colors.black87))),
+                ],
+                if (_batchFailedTitles.isNotEmpty && !isCancelled) ...[
                   const SizedBox(height: 10),
                   const Text('失败列表：', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
                   ..._batchFailedTitles.map((t) => Text('• $t', style: const TextStyle(fontSize: 12, color: Colors.red))),
@@ -1550,37 +1710,44 @@ class _MainScreenState extends State<MainScreen> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '$_currentViewModeLabel (第 $_currentForumPage 页)',
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                                ),
-                                const SizedBox(width: 8),
-                                InkWell(
-                                  onTap: _openSettingsDialog,
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF192D50).withOpacity(0.08),
+                            Expanded(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    '$_currentViewModeLabel (第 $_currentForumPage 页)',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: InkWell(
+                                      onTap: _openSettingsDialog,
                                       borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(Icons.tune, size: 12, color: Color(0xFF192D50)),
-                                        const SizedBox(width: 3),
-                                        Text(
-                                          '${_pdfWidth}px · ${_fontSize}px',
-                                          style: const TextStyle(fontSize: 11, color: Color(0xFF192D50), fontWeight: FontWeight.bold),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF192D50).withOpacity(0.08),
+                                          borderRadius: BorderRadius.circular(4),
                                         ),
-                                      ],
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            const Icon(Icons.tune, size: 12, color: Color(0xFF192D50)),
+                                            const SizedBox(width: 3),
+                                            Flexible(
+                                              child: Text(
+                                                '${_selectedTemplate.name} · ${_pdfWidth}px · ${_fontSize}px',
+                                                style: const TextStyle(fontSize: 11, color: Color(0xFF192D50), fontWeight: FontWeight.bold),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                             Row(
                               children: [

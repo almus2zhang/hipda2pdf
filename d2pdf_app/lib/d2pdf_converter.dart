@@ -44,15 +44,45 @@ class D2PdfConverter {
     } catch (_) {}
   }
 
-  /// Start background keep-alive service & wake lock
-  static Future<void> startKeepAlive({required String title, required String content}) async {
-    await checkAndRequestKeepAlivePermissions();
+  /// Check if SYSTEM_ALERT_WINDOW (display over other apps) is granted
+  static Future<bool> canDrawOverlays() async {
     try {
-      await _nativeChannel.invokeMethod('startKeepAlive', {'title': title, 'content': content});
+      if (Platform.isAndroid) {
+        final res = await _nativeChannel.invokeMethod<bool>('canDrawOverlays');
+        return res ?? false;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Request SYSTEM_ALERT_WINDOW permission
+  static Future<void> requestOverlayPermission() async {
+    try {
+      if (Platform.isAndroid) {
+        await _nativeChannel.invokeMethod('requestOverlayPermission');
+      }
     } catch (_) {}
   }
 
-  /// Update keep-alive notification progress
+  /// Start background keep-alive service & wake lock, with optional floating bubble
+  static Future<void> startKeepAlive({
+    required String title,
+    required String content,
+    bool showBubble = true,
+  }) async {
+    await checkAndRequestKeepAlivePermissions();
+    try {
+      await _nativeChannel.invokeMethod('startKeepAlive', {
+        'title': title,
+        'content': content,
+        'showBubble': showBubble,
+      });
+    } catch (_) {}
+  }
+
+  /// Update keep-alive notification and floating bubble progress
   static Future<void> updateKeepAlive({
     required String title,
     required String content,
@@ -66,6 +96,43 @@ class D2PdfConverter {
         'progress': progress,
         'max': max,
       });
+    } catch (_) {}
+  }
+
+  /// Show floating bubble directly
+  static Future<void> showFloatingBubble({
+    required String title,
+    required String content,
+  }) async {
+    try {
+      await _nativeChannel.invokeMethod('showFloatingBubble', {
+        'title': title,
+        'content': content,
+      });
+    } catch (_) {}
+  }
+
+  /// Update floating bubble text & progress
+  static Future<void> updateFloatingBubble({
+    required String title,
+    required String content,
+    int progress = -1,
+    int max = -1,
+  }) async {
+    try {
+      await _nativeChannel.invokeMethod('updateFloatingBubble', {
+        'title': title,
+        'content': content,
+        'progress': progress,
+        'max': max,
+      });
+    } catch (_) {}
+  }
+
+  /// Hide floating bubble
+  static Future<void> hideFloatingBubble() async {
+    try {
+      await _nativeChannel.invokeMethod('hideFloatingBubble');
     } catch (_) {}
   }
 
