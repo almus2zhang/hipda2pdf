@@ -528,6 +528,27 @@ class _AiCreateTemplateSheetState extends State<_AiCreateTemplateSheet> {
   File? _selectedImage;
   bool _isGenerating = false;
   String _statusMsg = '';
+  String _currentModel = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentModel();
+  }
+
+  Future<void> _loadCurrentModel() async {
+    final m = await AiServiceConfig.getModel();
+    if (mounted) {
+      setState(() {
+        _currentModel = m;
+      });
+    }
+  }
+
+  bool get _isVisionModel {
+    final m = _currentModel.toLowerCase();
+    return m.contains('vl') || m.contains('vision') || m.contains('4v') || m.contains('omni');
+  }
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
@@ -663,6 +684,30 @@ class _AiCreateTemplateSheetState extends State<_AiCreateTemplateSheet> {
                   child: Image.file(_selectedImage!, fit: BoxFit.cover),
                 ),
               ),
+              if (!_isVisionModel) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.amber.shade200),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.info_outline, size: 16, color: Colors.amber.shade900),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '当前配置的模型 ($_currentModel) 为纯文本模型，AI 将依据您的文字描述与现代排版规则生成模板。若希望 AI 直接识别图片像素色彩与排版细节，请在右上角 AI 设置中选用支持视觉的多模态模型。',
+                          style: TextStyle(fontSize: 11, color: Colors.amber.shade900, height: 1.35),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
             const SizedBox(height: 16),
             if (_isGenerating) ...[

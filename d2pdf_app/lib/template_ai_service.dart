@@ -20,7 +20,6 @@ class AiServiceConfig {
     'moonshotai/Kimi-K2.7-Code',
     'Pro/moonshotai/Kimi-K2.6',
     'Qwen/Qwen3.6-35B-A3B',
-    'Pro/Qwen/Qwen2.5-VL-7B-Instruct',
   ];
 
   static Future<String> getBaseUrl() async {
@@ -46,7 +45,10 @@ class AiServiceConfig {
   static Future<String> getModel() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(_kModelKey);
-    if (saved == null || saved.isEmpty || saved == 'deepseek-ai/DeepSeek-V4.1-Flash') {
+    if (saved == null ||
+        saved.isEmpty ||
+        saved == 'deepseek-ai/DeepSeek-V4.1-Flash' ||
+        saved.contains('Qwen2.5-VL-7B-Instruct')) {
       return defaultModel;
     }
     return saved;
@@ -181,31 +183,51 @@ class TemplateAiGenerator {
 }
 ''';
 
+    final actualModel = model.trim();
+    final isVision = actualModel.toLowerCase().contains('vl') ||
+        actualModel.toLowerCase().contains('vision') ||
+        actualModel.toLowerCase().contains('4v') ||
+        actualModel.toLowerCase().contains('omni') ||
+        actualModel.toLowerCase().contains('gemini') ||
+        actualModel.toLowerCase().contains('claude-3') ||
+        actualModel.toLowerCase().contains('gpt-4');
+
     List<Map<String, dynamic>> messages = [];
     messages.add({'role': 'system', 'content': systemPrompt});
 
     if (imageFile != null && imageFile.existsSync()) {
-      final bytes = await imageFile.readAsBytes();
-      final base64Image = base64Encode(bytes);
-      final mimeType = imageFile.path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
+      if (isVision) {
+        final bytes = await imageFile.readAsBytes();
+        final base64Image = base64Encode(bytes);
+        final mimeType = imageFile.path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
 
-      messages.add({
-        'role': 'user',
-        'content': [
-          {
-            'type': 'text',
-            'text': promptText.trim().isNotEmpty
-                ? '这是排版参考图，请参考该风格设计模板。用户补充说明：$promptText'
-                : '请根据这张图片的版式、色彩搭配与留白设计，为论坛楼层提炼出最匹配的模板配置。',
-          },
-          {
-            'type': 'image_url',
-            'image_url': {
-              'url': 'data:$mimeType;base64,$base64Image',
+        messages.add({
+          'role': 'user',
+          'content': [
+            {
+              'type': 'text',
+              'text': promptText.trim().isNotEmpty
+                  ? '这是排版参考图，请参考该风格设计模板。用户补充说明：$promptText'
+                  : '请根据这张图片的版式、色彩搭配与留白设计，为论坛楼层提炼出最匹配的模板配置。',
             },
-          },
-        ],
-      });
+            {
+              'type': 'image_url',
+              'image_url': {
+                'url': 'data:$mimeType;base64,$base64Image',
+              },
+            },
+          ],
+        });
+      } else {
+        // 当前模型为纯文本模型，不发送多模态数据块以避免接口报错
+        final userText = promptText.trim().isNotEmpty
+            ? promptText.trim()
+            : '设计一个美观、现代、阅读舒适的论坛 PDF 排版模板。';
+        messages.add({
+          'role': 'user',
+          'content': '$userText\n\n（提示：用户提供了参考排版图片，当前使用模型 $actualModel 为纯文本模型。请结合上述要求及现代高品质排版设计规范生成完整的模板 JSON 配置）',
+        });
+      }
     } else {
       messages.add({
         'role': 'user',
@@ -213,15 +235,6 @@ class TemplateAiGenerator {
             ? promptText
             : '设计一个美观、现代、阅读舒适的论坛 PDF 排版模板。',
       });
-    }
-
-    // 若上传了图片且在硅基流动上选用了纯文本模型，自动选用支持视觉分析的 Qwen2.5-VL 视觉模型
-    var actualModel = model.trim();
-    if (imageFile != null && cleanUrl.contains('siliconflow')) {
-      final isVision = actualModel.toLowerCase().contains('vl') || actualModel.toLowerCase().contains('vision');
-      if (!isVision) {
-        actualModel = 'Pro/Qwen/Qwen2.5-VL-7B-Instruct';
-      }
     }
 
     final requestBody = {
@@ -253,6 +266,11 @@ class TemplateAiGenerator {
 
     var content = choices[0]['message']?['content']?.toString() ?? '';
     content = content.trim();
+
+    // 清理思考链 <think>...</think> 标签内容
+    if (content.contains('</think>')) {
+      content = content.substring(content.lastIndexOf('</think>') + 8).trim();
+    }
 
     // 清理 markdown 代码块包裹
     if (content.startsWith('```json')) {
