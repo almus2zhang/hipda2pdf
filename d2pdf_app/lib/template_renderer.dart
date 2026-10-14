@@ -101,79 +101,79 @@ class TemplateRenderer {
         });
 
         // 3. 楼层 DOM 提取与应用
+        var mode = '$layoutMode';
         var tables = document.querySelectorAll('#postlist table[id^="pid"], table[id^="pid"]');
         if (tables.length === 0) {
           tables = document.querySelectorAll('table.viewthread, #postlist > table');
         }
 
-        tables.forEach(function(table) {
-          var authorTd = table.querySelector('.postauthor');
-          var contentTd = table.querySelector('.postcontent');
-          if (!contentTd) return;
+        if (mode === 'card' || mode === 'minimal') {
+          // ====== 现代卡片模式 / 极简阅读模式：重构成单列卡片流 ======
+          tables.forEach(function(table) {
+            var authorTd = table.querySelector('.postauthor');
+            var contentTd = table.querySelector('.postcontent');
+            if (!contentTd) return;
 
-          // 提取头像
-          var avatarSrc = '';
-          if (authorTd) {
-            var avImg = authorTd.querySelector('.avatar img') || authorTd.querySelector('img[src*="avatar"]') || authorTd.querySelector('img');
-            if (avImg) {
-              avatarSrc = avImg.getAttribute('file') || avImg.src;
-            }
-          }
-
-          // 提取用户名
-          var username = '';
-          if (authorTd) {
-            var userLink = authorTd.querySelector('.postinfo a') || authorTd.querySelector('cite a') || authorTd.querySelector('a[href*="space.php"]');
-            if (userLink) {
-              username = userLink.innerText.trim();
-            }
-          }
-          if (!username && contentTd) {
-            var cl = contentTd.querySelector('a[href*="space.php"]');
-            if (cl) username = cl.innerText.trim();
-          }
-
-          // 提取剩余其他信息（等级、星级、UID、帖子、积分、注册日期）
-          var otherInfoHtml = '';
-          if (authorTd) {
-            var authorClone = authorTd.cloneNode(true);
-            // 移除已有头像与名字避免重复
-            var av = authorClone.querySelector('.avatar');
-            if (av) av.remove();
-            var cite = authorClone.querySelector('cite');
-            if (cite) cite.remove();
-            var pi = authorClone.querySelector('.postinfo');
-            if (pi) pi.remove();
-            otherInfoHtml = authorClone.innerHTML.trim();
-          }
-
-          // 提取发帖时间与楼层序号
-          var postInfo = contentTd.querySelector('.postinfo');
-          var postTime = '';
-          var floorText = '';
-          if (postInfo) {
-            var strongEl = postInfo.querySelector('strong');
-            if (strongEl) {
-              floorText = strongEl.innerText.replace(/\\s+/g, ' ').trim();
-            }
-
-            var emList = postInfo.querySelectorAll('em');
-            emList.forEach(function(em) {
-              var t = em.innerText.trim();
-              if (t.indexOf('发表于') !== -1 || /\\d{4}-\\d{1,2}-\\d{1,2}/.test(t)) {
-                postTime = t;
+            // 提取头像
+            var avatarSrc = '';
+            if (authorTd) {
+              var avImg = authorTd.querySelector('.avatar img') || authorTd.querySelector('img[src*="avatar"]') || authorTd.querySelector('img');
+              if (avImg) {
+                avatarSrc = avImg.getAttribute('file') || avImg.src;
               }
-            });
-            if (!postTime) {
-              var m = postInfo.innerText.match(/发表于\\s*[\\d\\-:\\s]+/);
-              if (m) postTime = m[0].trim();
             }
-            postInfo.style.display = 'none';
-          }
 
-          var mode = '$layoutMode';
-          if (mode === 'card' || mode === 'minimal') {
-            // 隐藏原有侧边栏
+            // 提取用户名
+            var username = '';
+            if (authorTd) {
+              var userLink = authorTd.querySelector('.postinfo a') || authorTd.querySelector('cite a') || authorTd.querySelector('a[href*="space.php"]');
+              if (userLink) {
+                username = userLink.innerText.trim();
+              }
+            }
+            if (!username && contentTd) {
+              var cl = contentTd.querySelector('a[href*="space.php"]');
+              if (cl) username = cl.innerText.trim();
+            }
+
+            // 提取剩余其他信息（等级、星级、UID、帖子、积分、注册日期）
+            var otherInfoHtml = '';
+            if (authorTd) {
+              var authorClone = authorTd.cloneNode(true);
+              var av = authorClone.querySelector('.avatar');
+              if (av) av.remove();
+              var cite = authorClone.querySelector('cite');
+              if (cite) cite.remove();
+              var pi = authorClone.querySelector('.postinfo');
+              if (pi) pi.remove();
+              otherInfoHtml = authorClone.innerHTML.trim();
+            }
+
+            // 提取发帖时间与楼层序号
+            var postInfo = contentTd.querySelector('.postinfo');
+            var postTime = '';
+            var floorText = '';
+            if (postInfo) {
+              var strongEl = postInfo.querySelector('strong');
+              if (strongEl) {
+                floorText = strongEl.innerText.replace(/\\s+/g, ' ').trim();
+              }
+
+              var emList = postInfo.querySelectorAll('em');
+              emList.forEach(function(em) {
+                var t = em.innerText.trim();
+                if (t.indexOf('发表于') !== -1 || /\\d{4}-\\d{1,2}-\\d{1,2}/.test(t)) {
+                  postTime = t;
+                }
+              });
+              if (!postTime) {
+                var m = postInfo.innerText.match(/发表于\\s*[\\d\\-:\\s]+/);
+                if (m) postTime = m[0].trim();
+              }
+              postInfo.style.display = 'none';
+            }
+
+            // 隐藏原有左侧栏
             if (authorTd) authorTd.style.display = 'none';
 
             table.style.width = '100%';
@@ -268,58 +268,78 @@ class TemplateRenderer {
 
             header.appendChild(right);
             contentTd.insertBefore(header, contentTd.firstChild);
+          });
 
-          } else if (mode === 'split') {
-            // 经典论坛分栏模式
+        } else if (mode === 'split') {
+          // ====== 经典论坛左右分栏模式：保持原汁原味 ======
+          tables.forEach(function(table) {
+            var authorTd = table.querySelector('.postauthor');
+            var contentTd = table.querySelector('.postcontent');
+            if (!contentTd) return;
+
+            // 1. 确保左侧作者栏正常展示，保持原版结构
             if (authorTd) {
               authorTd.style.display = 'table-cell';
-              authorTd.style.width = '180px';
+              authorTd.style.width = '160px';
+              authorTd.style.minWidth = '160px';
               authorTd.style.maxWidth = '200px';
-              authorTd.style.background = '#f8fafc';
-              authorTd.style.padding = '12px';
-              authorTd.style.borderRight = '1px solid $cardBorderColor';
+              authorTd.style.verticalAlign = 'top';
+            }
+            if (contentTd) {
+              contentTd.style.display = 'table-cell';
+              contentTd.style.verticalAlign = 'top';
+            }
 
-              // 样式定制
-              var avImg = authorTd.querySelector('.avatar img');
-              if (avImg) {
-                avImg.style.display = ${showAvatar ? "'block'" : "'none'"};
-                avImg.style.borderRadius = '${avatarRound ? "50%" : "6px"}';
-                avImg.style.width = '${avatarSize}px';
-                avImg.style.height = '${avatarSize}px';
-              }
-              var cite = authorTd.querySelector('cite');
-              if (cite) {
-                cite.style.display = ${showUsername ? "'block'" : "'none'"};
-                cite.style.color = '$uColor';
-                cite.style.fontSize = '${uSize}px';
-                cite.style.fontWeight = '${uBold ? "bold" : "normal"}';
-              }
-              authorTd.querySelectorAll('p, div, dl').forEach(function(el) {
-                if (!el.classList.contains('avatar') && !el.closest('cite')) {
-                  el.style.display = ${showOtherInfo ? "''" : "'none'"};
-                  el.style.fontSize = '${otherSize}px';
-                  el.style.color = '$otherColor';
+            // 移除可能之前注入的自定义卡片头部
+            var oldHeader = contentTd.querySelector('.d2pdf-custom-header');
+            if (oldHeader) oldHeader.remove();
+
+            // 2. 原生 postinfo 保持原位显示，只隐藏“只看该作者”、“打印”等功能链接
+            var postInfo = contentTd.querySelector('.postinfo');
+            if (postInfo) {
+              postInfo.style.display = 'block';
+              postInfo.querySelectorAll('a').forEach(function(a) {
+                var txt = a.innerText ? a.innerText.trim() : '';
+                var href = a.getAttribute('href') || '';
+                if (txt.indexOf('只看该作者') !== -1 || txt.indexOf('打印') !== -1 ||
+                    txt.indexOf('发短消息') !== -1 || href.indexOf('printable') !== -1) {
+                  a.style.display = 'none';
                 }
               });
             }
 
-            if (contentTd) {
-              contentTd.style.display = 'table-cell';
-              contentTd.style.width = 'auto';
-            }
+            // 3. 彻底隐藏本楼底部的功能按钮栏 (.postactions)
+            table.querySelectorAll('.postactions, .threadactions, .modact, .postbtn').forEach(function(el) {
+              el.style.display = 'none';
+            });
 
-            var oldHeader = contentTd.querySelector('.d2pdf-custom-header');
-            if (oldHeader) oldHeader.remove();
+            // 4. 用户若在编辑器中手动关闭了某些元素，则按需隐藏；默认全部保持原汁原味
+            if (authorTd) {
+              if (!${showAvatar}) {
+                authorTd.querySelectorAll('.avatar').forEach(function(el) { el.style.display = 'none'; });
+              }
+              if (!${showUsername}) {
+                authorTd.querySelectorAll('cite').forEach(function(el) { el.style.display = 'none'; });
+              }
+              if (!${showOtherInfo}) {
+                authorTd.querySelectorAll('dl.profile, ul.profile, p, dl').forEach(function(el) {
+                  if (!el.closest('cite') && !el.closest('.avatar')) {
+                    el.style.display = 'none';
+                  }
+                });
+              }
+            }
 
             if (postInfo) {
-              postInfo.style.display = 'flex';
-              postInfo.style.justifyContent = 'space-between';
-              postInfo.style.alignItems = 'center';
-              postInfo.style.padding = '8px 12px';
-              postInfo.style.borderBottom = '1px solid $cardBorderColor';
+              if (!${showFloorBadge}) {
+                postInfo.querySelectorAll('strong').forEach(function(el) { el.style.display = 'none'; });
+              }
+              if (!${showPostTime}) {
+                postInfo.querySelectorAll('em').forEach(function(el) { el.style.display = 'none'; });
+              }
             }
-          }
-        });
+          });
+        }
 
         // 4. 处理顶部导航栏标题
         var navEl = document.getElementById('nav') || document.querySelector('.nav');
@@ -372,17 +392,65 @@ class TemplateRenderer {
             width: ${isPreview ? "100%" : "${width}px"} !important;
             overflow-x: hidden !important;
           }
-          #wrap, #postlist, .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
+          #wrap, #postlist {
             text-align: left !important;
             width: ${isPreview ? "100%" : "${width}px"} !important;
             max-width: ${isPreview ? "100%" : "${width}px"} !important;
             margin: 0 !important;
             padding: 0 !important;
+            box-sizing: border-box !important;
+            background: #ffffff !important;
+          }
+
+          ${layoutMode == 'card' || layoutMode == 'minimal' ? '''
+          .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
+            text-align: left !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
             border: none !important;
             box-sizing: border-box !important;
             background: #ffffff !important;
-            background-color: #ffffff !important;
           }
+          ''' : '''
+          .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
+            text-align: left !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            table-layout: fixed !important;
+          }
+          .postauthor, td.postauthor {
+            width: 160px !important;
+            min-width: 160px !important;
+            text-align: left !important;
+            vertical-align: top !important;
+          }
+          .postauthor, .postauthor * {
+            text-align: left !important;
+          }
+          .postcontent, td.postcontent {
+            vertical-align: top !important;
+            text-align: left !important;
+          }
+          .postinfo {
+            display: block !important;
+            overflow: hidden !important;
+            padding: 6px 10px !important;
+          }
+          .postinfo strong {
+            float: right !important;
+            font-weight: bold !important;
+          }
+          .postinfo em {
+            float: left !important;
+          }
+          .postactions {
+            display: none !important;
+          }
+          '''}
+
           table, tbody, tr, td, .postcontent, .postmessage, .t_msgfont, .t_msgfontfix, p, div, span, h1, h2, h3, h4 {
             text-align: left !important;
           }

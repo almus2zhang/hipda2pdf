@@ -824,6 +824,198 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   }
 
   Widget _buildInteractiveMockCard() {
+    if (_current.layoutMode == 'split') {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(4),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // 左侧：经典论坛作者侧边栏
+              Container(
+                width: 130,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.blueGrey.shade50.withOpacity(0.5),
+                  border: Border(
+                    right: BorderSide(color: Colors.grey.shade300),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 用户名
+                    if (_current.showUsername)
+                      InkWell(
+                        onTap: () => _showColorPickerSheet(
+                          '用户名',
+                          _current.usernameColor,
+                          (c) => setState(() => _current.usernameColor = c),
+                        ),
+                        child: Text(
+                          'HelloEarth',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: _current.usernameBold ? FontWeight.bold : FontWeight.normal,
+                            color: Color(int.parse(_current.usernameColor.replaceFirst('#', '0xFF'))),
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    // 头像
+                    if (_current.showAvatar)
+                      InkWell(
+                        onTap: () {
+                          setState(() => _current.avatarRound = !_current.avatarRound);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('已切换头像形态：${_current.avatarRound ? "圆形" : "方形"}')),
+                          );
+                        },
+                        child: Container(
+                          width: _current.avatarSize.toDouble().clamp(36.0, 56.0),
+                          height: _current.avatarSize.toDouble().clamp(36.0, 56.0),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF192D50),
+                            shape: _current.avatarRound ? BoxShape.circle : BoxShape.rectangle,
+                            borderRadius: _current.avatarRound ? null : BorderRadius.circular(4),
+                            border: Border.all(color: Colors.grey.shade300),
+                          ),
+                          alignment: Alignment.center,
+                          child: const Text('H', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                        ),
+                      ),
+                    const SizedBox(height: 8),
+                    // 剩余其他信息（星级、UID、帖子、积分）
+                    if (_current.showOtherInfo)
+                      InkWell(
+                        onTap: () => _showColorPickerSheet(
+                          '其他信息',
+                          _current.otherInfoColor,
+                          (c) => setState(() => _current.otherInfoColor = c),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '金牌会员 ☀️☀️🌙',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Color(int.parse(_current.otherInfoColor.replaceFirst('#', '0xFF'))),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'UID: 38294\n帖子: 154\n积分: 890\n注册: 2018-5-1',
+                              style: TextStyle(
+                                fontSize: 10,
+                                height: 1.3,
+                                color: Color(int.parse(_current.otherInfoColor.replaceFirst('#', '0xFF'))),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
+              // 右侧：正文栏与原生顶部信息
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // postinfo 栏
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          if (_current.showPostTime)
+                            InkWell(
+                              onTap: () => _showColorPickerSheet(
+                                '发帖时间',
+                                _current.postTimeColor,
+                                (c) => setState(() => _current.postTimeColor = c),
+                              ),
+                              child: Text(
+                                '发表于 2026-10-14 09:30',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Color(int.parse(_current.postTimeColor.replaceFirst('#', '0xFF'))),
+                                ),
+                              ),
+                            )
+                          else
+                            const SizedBox(),
+                          if (_current.showFloorBadge)
+                            InkWell(
+                              onTap: () => _showColorPickerSheet(
+                                '楼层号',
+                                _current.floorColor,
+                                (c) => setState(() => _current.floorColor = c),
+                              ),
+                              child: Text(
+                                '1# 楼主',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(int.parse(_current.floorColor.replaceFirst('#', '0xFF'))),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    // 正文区
+                    Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        '这是经典论坛左右分栏的楼层正文：左侧保持原汁原味的作者头像、等级星级、积分注册资料；右侧上方为发表时间与楼层序号，所有功能按钮（回复/引用/评分）均已自动去除。',
+                        style: TextStyle(
+                          fontSize: 13,
+                          height: _current.postLineHeight,
+                          color: Color(int.parse(_current.postTextColor.replaceFirst('#', '0xFF'))),
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    // 签名档区
+                    if (_current.showSignature)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          border: Border(top: BorderSide(color: Colors.grey.shade100)),
+                          color: Colors.grey.shade50,
+                        ),
+                        child: const Text(
+                          '—— 原汁原味个性签名档',
+                          style: TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
