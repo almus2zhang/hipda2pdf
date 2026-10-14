@@ -1991,12 +1991,6 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                 style: TextStyle(fontSize: 10, color: Colors.grey, fontStyle: FontStyle.italic),
               ),
             ),
-          // 延长到全屏的楼层底部分隔宽条 (全屏宽度 8px 分隔带)
-          Container(
-            height: 8,
-            width: double.infinity,
-            color: const Color(0xFFF1F5F9),
-          ),
         ],
       ),
     );

@@ -397,10 +397,10 @@ class TemplateRenderer {
             table.style.maxWidth = '100%';
             table.style.minWidth = '100%';
             table.style.display = 'block';
-            table.style.margin = '0';
+            table.style.margin = '0 0 10px 0';
             table.style.border = 'none';
-            // 延长到全屏的楼层底部分隔宽条 (8px 全宽纯净底部分隔)
-            table.style.borderBottom = '8px solid #f1f5f9';
+            // 楼层底部分割线与间隔与经典左右完全一致
+            table.style.borderBottom = '1px solid #e2e8f0';
             table.style.background = '#ffffff';
             table.style.boxSizing = 'border-box';
 
@@ -483,14 +483,21 @@ class TemplateRenderer {
           tables.forEach(function(table) {
             table.style.width = '';
             table.style.display = '';
-            table.style.margin = '';
-            table.style.border = '';
+            table.style.margin = '0 0 10px 0';
+            table.style.border = 'none';
+            table.style.borderBottom = '1px solid #e2e8f0';
             table.style.background = '';
 
-            // 隐藏多余空白操作栏 tr，避免楼层之间出现冗余空隙
-            table.querySelectorAll('.postactions').forEach(function(el) {
-              var r = el.closest('tr');
-              if (r) r.style.display = 'none';
+            // 彻底移除多余广告栏、操作栏、底栏 tr，避免楼层之间出现半边色块或冗余空隙
+            table.querySelectorAll('.postactions, .threadad, .adcontent, .postbottom, .threadsep, .line, tr:has(.adcontent)').forEach(function(el) {
+              var r = el.tagName === 'TR' ? el : el.closest('tr');
+              if (r) {
+                r.style.display = 'none';
+                r.remove();
+              } else {
+                el.style.display = 'none';
+                el.remove();
+              }
             });
 
             var authorTd = table.querySelector('.postauthor');
@@ -729,17 +736,17 @@ class TemplateRenderer {
             max-width: 100% !important;
             min-width: 100% !important;
             display: block !important;
-            margin: 0 !important;
+            margin: 0 0 10px 0 !important;
             padding: 0 !important;
             border: none !important;
-            border-bottom: 8px solid #f1f5f9 !important; /* 延长到全屏的楼层底部分隔宽条 */
+            border-bottom: 1px solid #e2e8f0 !important;
             box-sizing: border-box !important;
             background: #ffffff !important;
           }
           .postauthor, td.postauthor {
             display: none !important;
           }
-          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line, .postbottom {
+          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line, .postbottom, td.adcontent, .adcontent {
             display: none !important;
           }
           table.viewthread > tbody, table[id^="pid"] > tbody,
@@ -804,34 +811,28 @@ class TemplateRenderer {
             text-align: left !important;
             width: ${isPreview ? "100%" : "${width}px"} !important;
             max-width: ${isPreview ? "100%" : "${width}px"} !important;
-            margin: 0 !important;
+            margin: 0 0 10px 0 !important;
             padding: 0 !important;
             border: none !important;
-            border-bottom: 2px solid #e2e8f0 !important; /* 经典左右分割线减为一半 */
+            border-bottom: 1px solid #e2e8f0 !important;
             border-collapse: collapse !important;
             border-spacing: 0 !important;
             background: #ffffff !important;
             background-color: #ffffff !important;
             table-layout: fixed !important;
           }
-          /* 经典左右模式：楼层间分割线减为现在的一半 */
-          tr.threadad, tr.threadad td, tr.threadad td.postauthor, tr.threadad td.adcontent {
-            height: 3px !important;
-            max-height: 3px !important;
-            min-height: 3px !important;
-            line-height: 3px !important;
-            font-size: 0 !important;
+          /* 彻底隐藏所有广告行、操作行、分隔行及单侧色块 (避免正文下方出现单侧色条) */
+          tr.threadad, tr.threadad td, tr.threadad td.postauthor, tr.threadad td.adcontent,
+          td.adcontent, .adcontent, tr.threadsep, tr.threadsep td, tr.line, tr.line td,
+          tr.postactions, .postactions, tr.postbottom, td.postbottom {
+            display: none !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            max-height: 0 !important;
             padding: 0 !important;
             margin: 0 !important;
-          }
-          tr.threadsep, tr.threadsep td, tr.line, tr.line td {
-            height: 2px !important;
-            max-height: 2px !important;
-            min-height: 2px !important;
-            line-height: 2px !important;
-            font-size: 0 !important;
-            padding: 0 !important;
-            margin: 0 !important;
+            border: none !important;
+            background: transparent !important;
           }
           .postauthor, td.postauthor {
             width: ${authorWidth}px !important;
