@@ -1922,7 +1922,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           top: BorderSide(color: Colors.grey.shade300),
           left: BorderSide(color: Colors.grey.shade300),
           right: BorderSide(color: Colors.grey.shade300),
-          bottom: const BorderSide(color: Color(0xFFE9E9E9), width: 6),
+          bottom: const BorderSide(color: Color(0xFFE9E9E9), width: 4),
         ),
         borderRadius: BorderRadius.circular(4),
       ),
@@ -2048,7 +2048,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           top: BorderSide(color: Colors.grey.shade300),
           left: BorderSide(color: Colors.grey.shade300),
           right: BorderSide(color: Colors.grey.shade300),
-          bottom: const BorderSide(color: Color(0xFFE9E9E9), width: 6),
+          bottom: const BorderSide(color: Color(0xFFE9E9E9), width: 4),
         ),
         borderRadius: BorderRadius.circular(4),
         boxShadow: [
@@ -2134,7 +2134,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'UID: 38294\n帖子: 154\n积分: 890\n注册: 2018-5-1',
+                            curAuthorWidth <= 140
+                                ? 'UID: 38294\n帖子: 154\n积分: 890\n注册: 2018-5-1'
+                                : 'UID: 38294\n帖子: 154\n积分: 890\n注册时间: 2018-5-1',
                             style: TextStyle(
                               fontSize: 10,
                               height: 1.3,
@@ -2249,7 +2251,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           top: BorderSide(color: Color(0xFFD9D9D9)),
           left: BorderSide(color: Color(0xFFD9D9D9)),
           right: BorderSide(color: Color(0xFFD9D9D9)),
-          bottom: BorderSide(color: Color(0xFFE9E9E9), width: 6),
+          bottom: BorderSide(color: Color(0xFFE9E9E9), width: 4),
         ),
         borderRadius: BorderRadius.zero,
       ),

@@ -155,10 +155,11 @@ class LayoutTemplate {
     if (cfg is Map && cfg['authorWidth'] != null) {
       return (cfg['authorWidth'] as num).toInt();
     }
-    if (width <= 600 && splitAuthorWidth > 140) {
-      return 140;
-    }
-    return splitAuthorWidth;
+    // 用户指定规则：600对应100，800对应120，1000对应140，其他对应160
+    if (width <= 600) return 100;
+    if (width <= 800) return 120;
+    if (width <= 1000) return 140;
+    return 160;
   }
 
   /// 检查某宽度下某元素是否显示 (优先使用该宽度独立定制配置，否则回退到模板基准设置)
@@ -454,10 +455,10 @@ class TemplateManager {
     alternateBubbleColor: '#ffffff',
     pageBackgroundColor: '#ffffff',
     widthConfigs: {
-      '600': {'authorWidth': 140, 'avatarSize': 40},
-      '800': {'authorWidth': 160, 'avatarSize': 48},
-      '1000': {'authorWidth': 170, 'avatarSize': 52},
-      '1280': {'authorWidth': 180, 'avatarSize': 56},
+      '600': {'authorWidth': 100, 'avatarSize': 36},
+      '800': {'authorWidth': 120, 'avatarSize': 44},
+      '1000': {'authorWidth': 140, 'avatarSize': 48},
+      '1280': {'authorWidth': 160, 'avatarSize': 52},
     },
   );
 

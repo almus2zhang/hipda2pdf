@@ -2395,7 +2395,7 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
     });
     widget.onWidthChanged?.call(newWidth);
     if (_webViewController != null) {
-      _injectStyles(_webViewController!);
+      _webViewController!.reload();
     }
   }
 
@@ -2511,9 +2511,7 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
                           onTemplateSelected: (t) {
                             setState(() => _previewTemplate = t);
                             widget.onTemplateChanged?.call(t);
-                            if (_webViewController != null) {
-                              _injectStyles(_webViewController!);
-                            }
+                            _webViewController?.reload();
                           },
                         ),
                       ),
@@ -2521,17 +2519,13 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
                     final active = await TemplateManager.getActiveTemplate();
                     setState(() => _previewTemplate = active);
                     widget.onTemplateChanged?.call(active);
-                    if (_webViewController != null) {
-                      _injectStyles(_webViewController!);
-                    }
+                    _webViewController?.reload();
                   } else {
                     final all = await TemplateManager.getAllTemplates();
                     final found = all.firstWhere((t) => t.id == val, orElse: () => _previewTemplate);
                     setState(() => _previewTemplate = found);
                     widget.onTemplateChanged?.call(found);
-                    if (_webViewController != null) {
-                      _injectStyles(_webViewController!);
-                    }
+                    _webViewController?.reload();
                   }
                 },
                 itemBuilder: (context) => [

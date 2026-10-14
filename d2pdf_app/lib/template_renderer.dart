@@ -399,8 +399,8 @@ class TemplateRenderer {
             table.style.display = 'block';
             table.style.margin = '0';
             table.style.border = 'none';
-            // 楼层底部分割线与间隔与经典左右完全一致：高度 6px，颜色 #e9e9e9
-            table.style.borderBottom = '6px solid #e9e9e9';
+            // 楼层底部分割线与间隔与经典左右完全一致：高度 4px，颜色 #e9e9e9
+            table.style.borderBottom = '4px solid #e9e9e9';
             table.style.background = '#ffffff';
             table.style.boxSizing = 'border-box';
 
@@ -485,8 +485,8 @@ class TemplateRenderer {
             table.style.display = '';
             table.style.margin = '0';
             table.style.border = 'none';
-            // 楼层底部分割线与原汁原味完全一致：高度 6px，颜色 #e9e9e9
-            table.style.borderBottom = '6px solid #e9e9e9';
+            // 楼层底部分割线与原汁原味完全一致：高度 4px，颜色 #e9e9e9
+            table.style.borderBottom = '4px solid #e9e9e9';
             table.style.background = '';
 
             // 彻底移除多余广告栏、操作栏、底栏 tr，避免楼层之间出现半边色块或冗余空隙
@@ -550,6 +550,15 @@ class TemplateRenderer {
           }
           if (!$showPostTime) {
             document.querySelectorAll('td.postcontent .postinfo em').forEach(function(el) { el.style.display = 'none'; });
+          }
+
+          // 太窄用户信息放不下时，注册时间: 显示为 注册:
+          if ($authorWidth <= 140) {
+            document.querySelectorAll('.postauthor dl dt').forEach(function(dt) {
+              if (dt.textContent && dt.textContent.indexOf('注册时间') !== -1) {
+                dt.textContent = dt.textContent.replace('注册时间', '注册');
+              }
+            });
           }
 
         } else if (mode === 'raw') {
@@ -758,7 +767,7 @@ class TemplateRenderer {
             margin: 0 !important;
             padding: 0 !important;
             border: none !important;
-            border-bottom: 6px solid #e9e9e9 !important;
+            border-bottom: 4px solid #e9e9e9 !important;
             box-sizing: border-box !important;
             background: #ffffff !important;
           }
@@ -833,7 +842,7 @@ class TemplateRenderer {
             margin: 0 !important;
             padding: 0 !important;
             border: none !important;
-            border-bottom: 6px solid #e9e9e9 !important;
+            border-bottom: 4px solid #e9e9e9 !important;
             border-collapse: collapse !important;
             border-spacing: 0 !important;
             background: #ffffff !important;
@@ -857,7 +866,7 @@ class TemplateRenderer {
             width: ${authorWidth}px !important;
             min-width: ${authorWidth}px !important;
             max-width: ${authorWidth}px !important;
-            padding: ${authorWidth <= 130 ? "8px 6px" : "12px 10px"} !important;
+            padding: ${authorWidth <= 110 ? "6px 4px" : (authorWidth <= 130 ? "8px 6px" : "12px 10px")} !important;
             box-sizing: border-box !important;
             background: #f8fafc !important;
             border-right: 1px solid #e2e8f0 !important;
@@ -887,6 +896,10 @@ class TemplateRenderer {
             color: $uColor !important;
             font-weight: ${uBold ? 'bold' : 'normal'} !important;
             display: inline-block !important;
+            max-width: 100% !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
             word-break: break-all !important;
             text-decoration: none !important;
           }
@@ -906,8 +919,8 @@ class TemplateRenderer {
           }
           .postauthor .avatar img {
             display: block !important;
-            width: ${effectiveAvatarSize > 0 ? effectiveAvatarSize : (authorWidth <= 130 ? 40 : 48)}px !important;
-            height: ${effectiveAvatarSize > 0 ? effectiveAvatarSize : (authorWidth <= 130 ? 40 : 48)}px !important;
+            width: ${effectiveAvatarSize > 0 ? effectiveAvatarSize : (authorWidth <= 110 ? 32 : (authorWidth <= 130 ? 40 : 48))}px !important;
+            height: ${effectiveAvatarSize > 0 ? effectiveAvatarSize : (authorWidth <= 110 ? 32 : (authorWidth <= 130 ? 40 : 48))}px !important;
             border-radius: ${avatarRound ? '50%' : '4px'} !important;
             border: 1px solid $avatarBorder !important;
             box-sizing: border-box !important;
@@ -915,7 +928,7 @@ class TemplateRenderer {
             margin: 0 !important;
           }
 
-          /* 用户组头衔（如：传说中的贴神？、金牌会员等）与等级星级图标 */
+          /* 用户组头衔（如：传说中的贴神？、金牌会员等）与等级星级图标：过长则截断省略 */
           .postauthor p {
             margin: 2px 0 4px 0 !important;
             padding: 0 !important;
@@ -923,12 +936,23 @@ class TemplateRenderer {
             line-height: 1.4 !important;
             color: $otherColor !important;
             text-align: left !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
           }
           .postauthor p em, .postauthor p em a, .postauthor p a {
             font-style: normal !important;
             font-size: ${otherSize}px !important;
             color: $otherColor !important;
             text-decoration: none !important;
+            display: inline-block !important;
+            max-width: 100% !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: nowrap !important;
+            vertical-align: bottom !important;
           }
           .postauthor p img {
             vertical-align: middle !important;
@@ -975,6 +999,9 @@ class TemplateRenderer {
             color: $otherColor !important;
             font-family: inherit !important;
             word-break: break-all !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
           }
 
           /* 隐藏左侧作者栏内部多余弹出面板及冗余占位 */
