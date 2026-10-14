@@ -67,7 +67,12 @@ class TemplateRenderer {
           '.postactions', '.modact', '#quickpost',
           '#postlist_act', '.postbtn', '#newspecial', '#post_reply',
           '.threadactions', '#visitedforums', '.forumcontrol', '#f_post',
-          'form[action*="post.php"]'
+          'form[action*="post.php"]',
+          // 彻底去除主贴顶部的打印、字体大小、跳转到、倒序看帖
+          '.pagecontrol', '.print', 'a.print', 'a[href*="action=printable"]',
+          '.msgfsize', '.msgfontsize', '#msgfontsize',
+          'em.rpostno', '#rpostnobtn', '#rpostnovalue', 'input[name="rpostno"]',
+          'a[href*="ordertype="]'
         ];
         hideSelectors.forEach(function(sel) {
           document.querySelectorAll(sel).forEach(function(el) {
@@ -86,18 +91,23 @@ class TemplateRenderer {
           }
         }
 
-        // 移除回复按钮与“返回列表”
-        document.querySelectorAll('a, button, span, div, p').forEach(function(el) {
+        // 移除回复按钮与“返回列表”及顶部干扰工具
+        document.querySelectorAll('a, button, span, div, p, em').forEach(function(el) {
           var t = el.innerText ? el.innerText.trim() : '';
           if (t === '发表回复' || t === '发表新帖' || t === '发新帖' || t === '发帖' || t === '回复' ||
-              t === '返回列表' || t.indexOf('返回列表') !== -1) {
-            var container = el.closest('.pages_btns') || el.closest('.postbtn') || el.closest('.forumcontrol') || el.closest('#postlist_act') || el;
+              t === '返回列表' || t.indexOf('返回列表') !== -1 ||
+              t.indexOf('倒序看帖') !== -1 || t.indexOf('倒序看贴') !== -1 ||
+              t.indexOf('正序看帖') !== -1 || t.indexOf('正序看贴') !== -1 ||
+              t.indexOf('跳转到') !== -1 ||
+              t.indexOf('只看该作者') !== -1) {
+            var container = el.closest('.pages_btns') || el.closest('.postbtn') || el.closest('.forumcontrol') ||
+                            el.closest('#postlist_act') || el.closest('.pagecontrol') || el.closest('em.rpostno') || el;
             if (container) container.style.display = 'none';
           }
         });
 
         document.querySelectorAll('a').forEach(function(a) {
-          if (a.innerText && a.innerText.indexOf('只看该作者') !== -1) {
+          if (a.innerText && (a.innerText.indexOf('只看该作者') !== -1 || a.innerText.indexOf('打印') !== -1)) {
             a.style.display = 'none';
           }
         });
@@ -185,15 +195,17 @@ class TemplateRenderer {
               postInfo.style.display = 'none';
             }
 
-            // 隐藏所有多余的 tr 行，防止残留 120px 宽度的 postauthor 宽条
-            table.querySelectorAll('tr').forEach(function(tr) {
-              if (!tr.querySelector('.postcontent') && !tr.querySelector('.postmessage')) {
-                tr.style.display = 'none';
-              }
-            });
+            // 安全隐藏无关附属元素与底边条，绝不误伤正文内部嵌套表格
             table.querySelectorAll('.postauthor').forEach(function(el) {
               el.style.display = 'none';
               el.style.background = 'transparent';
+            });
+            table.querySelectorAll('.postbottom, .postactions, tr.threadad, tr.threadsep, tr.line, td.line, .adcontent').forEach(function(el) {
+              el.style.display = 'none';
+              var r = el.closest('tr');
+              if (r && (r.parentNode === table || (table.tBodies && Array.from(table.tBodies).includes(r.parentNode)))) {
+                r.style.display = 'none';
+              }
             });
 
             // 气泡交替双色判断
@@ -349,15 +361,17 @@ class TemplateRenderer {
               postInfo.style.display = 'none';
             }
 
-            // 隐藏所有多余的 tr 行，防止残留 120px 宽度的 postauthor 宽条
-            table.querySelectorAll('tr').forEach(function(tr) {
-              if (!tr.querySelector('.postcontent') && !tr.querySelector('.postmessage')) {
-                tr.style.display = 'none';
-              }
-            });
+            // 安全隐藏无关附属行与底边条，绝不误伤正文内部嵌套表格
             table.querySelectorAll('.postauthor').forEach(function(el) {
               el.style.display = 'none';
               el.style.background = 'transparent';
+            });
+            table.querySelectorAll('.postbottom, .postactions, tr.threadad, tr.threadsep, tr.line, td.line, .adcontent').forEach(function(el) {
+              el.style.display = 'none';
+              var r = el.closest('tr');
+              if (r && (r.parentNode === table || (table.tBodies && Array.from(table.tBodies).includes(r.parentNode)))) {
+                r.style.display = 'none';
+              }
             });
 
             table.style.width = '100%';
@@ -454,6 +468,12 @@ class TemplateRenderer {
             table.style.border = '';
             table.style.background = '';
 
+            // 隐藏多余空白操作栏 tr，避免楼层之间出现冗余空隙
+            table.querySelectorAll('.postactions').forEach(function(el) {
+              var r = el.closest('tr');
+              if (r) r.style.display = 'none';
+            });
+
             var authorTd = table.querySelector('.postauthor');
             if (authorTd) {
               authorTd.style.display = '';
@@ -500,6 +520,46 @@ class TemplateRenderer {
           if (!$showPostTime) {
             document.querySelectorAll('.postinfo em').forEach(function(el) { el.style.display = 'none'; });
           }
+
+        } else if (mode === 'raw') {
+          // ====== 原汁原味模式：原汁原味保留论坛经典排版，仅调整宽度与文字大小 ======
+          tables.forEach(function(table) {
+            table.style.width = '100%';
+            table.style.display = '';
+            table.style.margin = '';
+            table.style.border = '';
+            table.style.background = '';
+
+            table.querySelectorAll('.postactions').forEach(function(el) {
+              var r = el.closest('tr');
+              if (r) r.style.display = 'none';
+            });
+
+            var authorTd = table.querySelector('.postauthor');
+            if (authorTd) {
+              authorTd.style.display = '';
+              authorTd.style.width = '';
+              authorTd.style.minWidth = '';
+              authorTd.style.maxWidth = '';
+              authorTd.style.verticalAlign = '';
+            }
+
+            var contentTd = table.querySelector('.postcontent');
+            if (contentTd) {
+              contentTd.style.display = '';
+              contentTd.style.width = '';
+              contentTd.style.padding = '';
+              contentTd.style.boxSizing = '';
+
+              var oldHeader = contentTd.querySelector('.d2pdf-custom-header');
+              if (oldHeader) oldHeader.remove();
+
+              var postInfo = contentTd.querySelector('.postinfo');
+              if (postInfo) {
+                postInfo.style.display = '';
+              }
+            }
+          });
         }
 
         // 4. 处理顶部导航栏标题
@@ -585,7 +645,7 @@ class TemplateRenderer {
           .postauthor, td.postauthor {
             display: none !important;
           }
-          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line {
+          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line, .postbottom {
             display: none !important;
           }
           table.viewthread > tbody, table[id^="pid"] > tbody,
@@ -603,7 +663,7 @@ class TemplateRenderer {
             visibility: visible !important;
             opacity: 1 !important;
           }
-          .defaultpost, .postmessage, .t_msgfont, .t_msgfontfix {
+          .defaultpost, .postmessage, .t_msgfontfix {
             display: block !important;
             width: 100% !important;
             max-width: 100% !important;
@@ -619,17 +679,17 @@ class TemplateRenderer {
             box-sizing: border-box !important;
             table-layout: auto !important;
           }
-          .postmessage, .t_msgfont, .t_msgfontfix, .t_msgfont td {
-            width: 100% !important;
-            max-width: 100% !important;
-            box-sizing: border-box !important;
+          .postmessage {
             padding: 8px 12px 12px 12px !important;
-            background: transparent !important;
+          }
+          .postmessage, .t_msgfont, .t_msgfontfix, .t_msgfont td {
             font-size: ${fontSize}px !important;
             line-height: $postLineHeight !important;
             color: $postTextColor !important;
             word-break: break-word !important;
             word-wrap: break-word !important;
+            visibility: visible !important;
+            opacity: 1 !important;
           }
           ''' : (layoutMode == 'minimal' ? '''
           .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
@@ -648,7 +708,7 @@ class TemplateRenderer {
           .postauthor, td.postauthor {
             display: none !important;
           }
-          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line {
+          .postactions, .modact, tr.threadad, tr.threadsep, td.line, tr.line, .postbottom {
             display: none !important;
           }
           table.viewthread > tbody, table[id^="pid"] > tbody,
@@ -666,7 +726,7 @@ class TemplateRenderer {
             visibility: visible !important;
             opacity: 1 !important;
           }
-          .defaultpost, .postmessage, .t_msgfont, .t_msgfontfix {
+          .defaultpost, .postmessage, .t_msgfontfix {
             display: block !important;
             width: 100% !important;
             max-width: 100% !important;
@@ -682,16 +742,31 @@ class TemplateRenderer {
             box-sizing: border-box !important;
             table-layout: auto !important;
           }
-          .postmessage, .t_msgfont, .t_msgfontfix, .t_msgfont td {
-            width: 100% !important;
-            max-width: 100% !important;
-            box-sizing: border-box !important;
+          .postmessage {
             padding: 8px 12px 12px 12px !important;
+          }
+          .postmessage, .t_msgfont, .t_msgfontfix, .t_msgfont td {
             font-size: ${fontSize}px !important;
             line-height: $postLineHeight !important;
             color: $postTextColor !important;
             word-break: break-word !important;
             word-wrap: break-word !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+          }
+          ''' : (layoutMode == 'raw' ? '''
+          .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
+            text-align: left !important;
+            width: ${isPreview ? "100%" : "${width}px"} !important;
+            max-width: ${isPreview ? "100%" : "${width}px"} !important;
+            margin: 0 !important;
+            background: #ffffff !important;
+            background-color: #ffffff !important;
+          }
+          .postmessage, .t_msgfont, .t_msgfontfix, .t_msgfont td {
+            font-size: ${fontSize}px !important;
+            line-height: $postLineHeight !important;
+            color: $postTextColor !important;
           }
           ''' : '''
           .viewthread, .mainbox, table.viewthread, table[id^="pid"], #postlist > table {
@@ -701,8 +776,28 @@ class TemplateRenderer {
             margin: 0 !important;
             padding: 0 !important;
             border: none !important;
+            border-bottom: 2px solid #e2e8f0 !important; /* 经典左右分割线减为一半 */
             background: #ffffff !important;
             background-color: #ffffff !important;
+          }
+          /* 经典左右模式：楼层间分割线减为现在的一半 */
+          tr.threadad, tr.threadad td, tr.threadad td.postauthor, tr.threadad td.adcontent {
+            height: 3px !important;
+            max-height: 3px !important;
+            min-height: 3px !important;
+            line-height: 3px !important;
+            font-size: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          tr.threadsep, tr.threadsep td, tr.line, tr.line td {
+            height: 2px !important;
+            max-height: 2px !important;
+            min-height: 2px !important;
+            line-height: 2px !important;
+            font-size: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
           }
           .postauthor, .postauthor * {
             text-align: left !important;
@@ -733,7 +828,15 @@ class TemplateRenderer {
           .postauthor cite, .postauthor cite a {
             font-size: ${uSize}px !important;
           }
-          ''')}
+          '''))}
+
+          /* 彻底隐藏主贴顶部多余文字与按钮：打印、字体大小、倒序看贴、跳转到 */
+          .pagecontrol, .print, a.print, a[href*="action=printable"],
+          .msgfsize, .msgfontsize, #msgfontsize,
+          em.rpostno, #rpostnobtn, #rpostnovalue, input[name="rpostno"],
+          a[href*="ordertype="] {
+            display: none !important;
+          }
 
           table, tbody, tr, td, .postcontent, p, div, span, h1, h2, h3, h4 {
             text-align: left !important;

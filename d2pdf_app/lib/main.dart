@@ -74,9 +74,9 @@ class _MainScreenState extends State<MainScreen> {
   int _pdfWidth = 600;
   static const List<int> kSupportedWidths = [600, 800, 1280, 1440, 1920];
 
-  // Font size setting (default 16px, supports 14, 16, 18, 20, 24, 28, 32, 36)
+  // Font size setting (default 16px, supports 12, 14, 16, 18, 20, 24, 28, 32, 36)
   int _fontSize = 16;
-  static const List<int> kSupportedFontSizes = [14, 16, 18, 20, 24, 28, 32, 36];
+  static const List<int> kSupportedFontSizes = [12, 14, 16, 18, 20, 24, 28, 32, 36];
 
   /// Tier-based auxiliary font sizing:
   /// - 14~18: default/compact tier -> user 15px, time/floor 12-13px
@@ -626,17 +626,27 @@ class _MainScreenState extends State<MainScreen> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                Slider(
-                  value: tempFontSize.toDouble().clamp(12.0, 36.0),
-                  min: 12.0,
-                  max: 36.0,
-                  divisions: 24,
-                  label: '${tempFontSize}px',
-                  activeColor: const Color(0xFF192D50),
-                  onChanged: (val) {
-                    setDialogState(() {
-                      tempFontSize = val.round();
-                    });
+                Builder(
+                  builder: (context) {
+                    const fontSizes = _MainScreenState.kSupportedFontSizes;
+                    int fontIndex = fontSizes.indexOf(tempFontSize);
+                    if (fontIndex == -1) {
+                      fontIndex = fontSizes.indexWhere((s) => s >= tempFontSize);
+                      if (fontIndex == -1) fontIndex = 2; // 16px
+                    }
+                    return Slider(
+                      value: fontIndex.toDouble(),
+                      min: 0.0,
+                      max: (fontSizes.length - 1).toDouble(),
+                      divisions: fontSizes.length - 1,
+                      label: '${tempFontSize}px',
+                      activeColor: const Color(0xFF192D50),
+                      onChanged: (val) {
+                        setDialogState(() {
+                          tempFontSize = fontSizes[val.round()];
+                        });
+                      },
+                    );
                   },
                 ),
                 Padding(
@@ -646,7 +656,8 @@ class _MainScreenState extends State<MainScreen> {
                     children: [
                       Text('12px 紧凑', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                       Text('16px 默认', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-                      Text('24px 适中', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                      Text('20px 适中', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                      Text('28px 较大', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                       Text('36px 特大', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                     ],
                   ),
@@ -673,17 +684,27 @@ class _MainScreenState extends State<MainScreen> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                Slider(
-                  value: tempWidth.toDouble().clamp(500.0, 1920.0),
-                  min: 500.0,
-                  max: 1920.0,
-                  divisions: 71,
-                  label: '${tempWidth}px',
-                  activeColor: const Color(0xFF192D50),
-                  onChanged: (val) {
-                    setDialogState(() {
-                      tempWidth = (val / 10).round() * 10;
-                    });
+                Builder(
+                  builder: (context) {
+                    const widths = _MainScreenState.kSupportedWidths;
+                    int widthIndex = widths.indexOf(tempWidth);
+                    if (widthIndex == -1) {
+                      widthIndex = widths.indexWhere((w) => w >= tempWidth);
+                      if (widthIndex == -1) widthIndex = 0; // 600px
+                    }
+                    return Slider(
+                      value: widthIndex.toDouble(),
+                      min: 0.0,
+                      max: (widths.length - 1).toDouble(),
+                      divisions: widths.length - 1,
+                      label: '${tempWidth}px',
+                      activeColor: const Color(0xFF192D50),
+                      onChanged: (val) {
+                        setDialogState(() {
+                          tempWidth = widths[val.round()];
+                        });
+                      },
+                    );
                   },
                 ),
                 Padding(
@@ -691,10 +712,10 @@ class _MainScreenState extends State<MainScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('500px 紧凑', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                       Text('600px 手机', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                       Text('800px 标准', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                       Text('1280px 全景', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                      Text('1440px 2K', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                       Text('1920px 4K', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
                     ],
                   ),
@@ -2553,6 +2574,20 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
                         ),
                         const SizedBox(width: 8),
                         const Text('极简纯享阅读', style: TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem<String>(
+                    value: TemplateManager.rawOriginal.id,
+                    child: Row(
+                      children: [
+                        Icon(
+                          _previewTemplate.id == TemplateManager.rawOriginal.id ? Icons.check_circle : Icons.radio_button_unchecked,
+                          size: 16,
+                          color: const Color(0xFF192D50),
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('原汁原味', style: TextStyle(fontSize: 13)),
                       ],
                     ),
                   ),

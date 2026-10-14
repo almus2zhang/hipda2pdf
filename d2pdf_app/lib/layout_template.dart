@@ -42,6 +42,7 @@ class LayoutTemplate {
   // 'card': 现代移动卡片流式（每楼独立气泡卡片，支持交替双色、边框与底色，各宽度自动填满）
   // 'split': 经典论坛左右分栏（左侧作者栏，右侧正文栏）
   // 'minimal': 极简阅读（去掉多余修饰，纯净阅读，全宽填满）
+  // 'raw': 原汁原味（原汁原味保留论坛经典桌面排版，仅调整宽度与字号，净化功能按钮）
   String layoutMode; 
   int splitAuthorWidth; // 经典左右分栏模式下左侧作者栏宽度 (如 140px)
 
@@ -462,8 +463,42 @@ class TemplateManager {
     pageBackgroundColor: '#ffffff',
   );
 
+  // 4. 原汁原味 (原汁原味保留论坛经典排版，仅调整宽度与文字大小，去除功能按钮)
+  static final LayoutTemplate rawOriginal = LayoutTemplate(
+    id: 'builtin_raw',
+    name: '原汁原味',
+    description: '原汁原味保留论坛经典桌面排版，仅调整页面宽度与正文字号，净化冗余按钮。',
+    defaultWidth: 800,
+    isBuiltin: true,
+    showAvatar: true,
+    avatarSize: 0,
+    avatarRound: false,
+    avatarBorderColor: '#cbd5e1',
+    showUsername: true,
+    usernameColor: '#003B54',
+    usernameBold: true,
+    showOtherInfo: true,
+    otherInfoColor: '#666666',
+    showFloorBadge: true,
+    floorColor: '#003B54',
+    showPostTime: true,
+    postTimeColor: '#666666',
+    postTextColor: '#444444',
+    postLineHeight: 1.6,
+    showSignature: true,
+    layoutMode: 'raw',
+    cardBorderColor: '#efefef',
+    cardBorderWidth: 1,
+    cardBorderRadius: 0,
+    showFloorDivider: true,
+    cardBackgroundColor: '#ffffff',
+    enableAlternateBubbleColor: false,
+    alternateBubbleColor: '#ffffff',
+    pageBackgroundColor: '#ffffff',
+  );
+
   static List<LayoutTemplate> getBuiltinTemplates() {
-    return [defaultCard, fullForum, minimalReader];
+    return [defaultCard, fullForum, minimalReader, rawOriginal];
   }
 
   /// 获取当前所有可用模板（内置 + 用户自定义）

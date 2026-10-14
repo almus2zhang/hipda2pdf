@@ -330,7 +330,7 @@ class _TemplateManageScreenState extends State<TemplateManageScreen> {
                                     const SizedBox(width: 6),
                                     _buildBadge(t.showOtherInfo ? '全用户信息' : '仅用户名'),
                                     const SizedBox(width: 6),
-                                    _buildBadge(t.layoutMode == 'card' ? '卡片流' : (t.layoutMode == 'split' ? '左右分栏' : '极简阅读')),
+                                    _buildBadge(t.layoutMode == 'card' ? '卡片流' : (t.layoutMode == 'split' ? '左右分栏' : (t.layoutMode == 'raw' ? '原汁原味' : '极简阅读'))),
                                     const Spacer(),
                                     IconButton(
                                       icon: const Icon(Icons.edit, size: 18),
@@ -826,6 +826,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                     ButtonSegment(value: 'card', label: Text('现代气泡卡片')),
                     ButtonSegment(value: 'split', label: Text('经典左右分栏')),
                     ButtonSegment(value: 'minimal', label: Text('极简纯享')),
+                    ButtonSegment(value: 'raw', label: Text('原汁原味')),
                   ],
                   selected: {_current.layoutMode},
                   onSelectionChanged: (val) {
