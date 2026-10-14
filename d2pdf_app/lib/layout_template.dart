@@ -43,11 +43,12 @@ class LayoutTemplate {
   // 'split': 经典论坛左右分栏（左侧作者栏，右侧正文栏）
   // 'minimal': 极简阅读（去掉多余修饰，纯净阅读，全宽填满）
   String layoutMode; 
+  int splitAuthorWidth; // 经典左右分栏模式下左侧作者栏宽度 (如 140px)
 
   // 气泡卡片外框/分割线/背景样式
   String cardBorderColor; // 如 "#e2e8f0"
   int cardBorderWidth; // 气泡边框粗细，如 1px (0 为无边框)
-  int cardBorderRadius; // 气泡圆角大小，如 10px
+  int cardBorderRadius; // 气泡圆角大小，如 10px (0 为直角)
   bool showFloorDivider; // 楼层内作者与正文间微弱分割线
   String cardBackgroundColor; // 气泡主颜色，如 "#ffffff"
   bool enableAlternateBubbleColor; // 是否启用气泡交替双色
@@ -85,6 +86,7 @@ class LayoutTemplate {
     this.postLineHeight = 1.65,
     this.showSignature = false,
     this.layoutMode = 'card',
+    this.splitAuthorWidth = 140,
     this.cardBorderColor = '#e2e8f0',
     this.cardBorderWidth = 1,
     this.cardBorderRadius = 10,
@@ -107,13 +109,23 @@ class LayoutTemplate {
     return avatarSize;
   }
 
-  /// 获取指定宽度下的卡片圆角大小
+  /// 获取指定宽度下的卡片圆角大小 (0 为直角)
   int getBorderRadiusForWidth(int width) {
     final cfg = widthConfigs[width.toString()];
     if (cfg is Map && cfg['borderRadius'] != null) {
       return (cfg['borderRadius'] as num).toInt();
     }
     return cardBorderRadius;
+  }
+
+  /// 获取指定宽度下的经典左右分栏作者栏宽度
+  int getAuthorWidthForWidth(int width) {
+    final cfg = widthConfigs[width.toString()];
+    if (cfg is Map && cfg['authorWidth'] != null) {
+      return (cfg['authorWidth'] as num).toInt();
+    }
+    if (width <= 600) return 110;
+    return splitAuthorWidth;
   }
 
   /// 检查某宽度下某元素是否显示 (优先使用该宽度独立定制配置，否则回退到模板基准设置)
@@ -193,6 +205,7 @@ class LayoutTemplate {
     'postLineHeight': postLineHeight,
     'showSignature': showSignature,
     'layoutMode': layoutMode,
+    'splitAuthorWidth': splitAuthorWidth,
     'cardBorderColor': cardBorderColor,
     'cardBorderWidth': cardBorderWidth,
     'cardBorderRadius': cardBorderRadius,
@@ -232,6 +245,7 @@ class LayoutTemplate {
       postLineHeight: (json['postLineHeight'] as num?)?.toDouble() ?? 1.65,
       showSignature: json['showSignature'] ?? false,
       layoutMode: mode,
+      splitAuthorWidth: json['splitAuthorWidth'] ?? 140,
       cardBorderColor: json['cardBorderColor'] ?? '#e2e8f0',
       cardBorderWidth: json['cardBorderWidth'] ?? 1,
       cardBorderRadius: json['cardBorderRadius'] ?? 10,
@@ -272,6 +286,7 @@ class LayoutTemplate {
     double? postLineHeight,
     bool? showSignature,
     String? layoutMode,
+    int? splitAuthorWidth,
     String? cardBorderColor,
     int? cardBorderWidth,
     int? cardBorderRadius,
@@ -308,6 +323,7 @@ class LayoutTemplate {
       postLineHeight: postLineHeight ?? this.postLineHeight,
       showSignature: showSignature ?? this.showSignature,
       layoutMode: layoutMode ?? this.layoutMode,
+      splitAuthorWidth: splitAuthorWidth ?? this.splitAuthorWidth,
       cardBorderColor: cardBorderColor ?? this.cardBorderColor,
       cardBorderWidth: cardBorderWidth ?? this.cardBorderWidth,
       cardBorderRadius: cardBorderRadius ?? this.cardBorderRadius,

@@ -48,6 +48,7 @@ class TemplateRenderer {
     final String alternateBubbleColor = template.alternateBubbleColor;
     final String pageBgColor = (layoutMode == 'card') ? template.pageBackgroundColor : '#ffffff';
     final int effectiveAvatarSize = template.getAvatarSizeForWidth(width);
+    final int authorWidth = template.getAuthorWidthForWidth(width);
     final String customCss = template.customCss;
 
     return """
@@ -432,9 +433,9 @@ class TemplateRenderer {
             var authorTd = table.querySelector('.postauthor');
             if (authorTd) {
               authorTd.style.display = '';
-              authorTd.style.width = '';
-              authorTd.style.minWidth = '';
-              authorTd.style.maxWidth = '';
+              authorTd.style.width = '${authorWidth}px';
+              authorTd.style.minWidth = '${authorWidth}px';
+              authorTd.style.maxWidth = '${authorWidth}px';
               authorTd.style.verticalAlign = '';
             }
 
@@ -656,18 +657,16 @@ class TemplateRenderer {
           .postauthor, .postauthor * {
             text-align: left !important;
           }
-          ${width <= 600 ? '''
           .postauthor, td.postauthor {
-            width: 110px !important;
-            min-width: 110px !important;
-            max-width: 120px !important;
-            padding: 4px !important;
+            width: ${authorWidth}px !important;
+            min-width: ${authorWidth}px !important;
+            max-width: ${authorWidth}px !important;
+            padding: ${authorWidth <= 120 ? "4px" : "8px"} !important;
           }
           .postauthor .avatar img {
-            width: 48px !important;
-            height: 48px !important;
+            width: ${effectiveAvatarSize > 0 ? effectiveAvatarSize : (authorWidth <= 120 ? 48 : 64)}px !important;
+            height: ${effectiveAvatarSize > 0 ? effectiveAvatarSize : (authorWidth <= 120 ? 48 : 64)}px !important;
           }
-          ''' : ''}
           .postmessage, .t_msgfont, .t_msgfontfix {
             padding: 10px 14px 14px 14px !important;
             box-sizing: border-box !important;

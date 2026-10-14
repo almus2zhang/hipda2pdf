@@ -613,6 +613,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   late TextEditingController _cssController;
 
   late int _editingWidth;
+  bool _previewFitScreen = true; // 预览模式：true 为缩放适应屏幕，false 为 1:1 真实宽度滑动
 
   @override
   void initState() {
@@ -736,18 +737,64 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                         children: [
                           const Icon(Icons.visibility_outlined, size: 14, color: Color(0xFF192D50)),
                           const SizedBox(width: 4),
-                          Text(
-                            '实时预览 (${_editingWidth}px 布局 · 点击元素可快捷调整):',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF192D50)),
+                          Expanded(
+                            child: Text(
+                              '实时预览 (${_editingWidth}px · ${_previewFitScreen ? "缩放适应" : "1:1真实"}):',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF192D50)),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          SizedBox(
+                            height: 24,
+                            child: SegmentedButton<bool>(
+                              style: ButtonStyle(
+                                visualDensity: VisualDensity.compact,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 6, vertical: 0)),
+                              ),
+                              segments: const [
+                                ButtonSegment<bool>(
+                                  value: true,
+                                  label: Text('缩放适应', style: TextStyle(fontSize: 10)),
+                                  icon: Icon(Icons.fit_screen, size: 12),
+                                ),
+                                ButtonSegment<bool>(
+                                  value: false,
+                                  label: Text('1:1 真实', style: TextStyle(fontSize: 10)),
+                                  icon: Icon(Icons.aspect_ratio, size: 12),
+                                ),
+                              ],
+                              selected: {_previewFitScreen},
+                              onSelectionChanged: (val) {
+                                setState(() => _previewFitScreen = val.first);
+                              },
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 180),
-                        child: SingleChildScrollView(
-                          child: _buildInteractiveMockCard(),
-                        ),
+                        constraints: const BoxConstraints(maxHeight: 220),
+                        child: _previewFitScreen
+                            ? SingleChildScrollView(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.topCenter,
+                                  child: SizedBox(
+                                    width: _editingWidth.toDouble(),
+                                    child: _buildInteractiveMockCard(),
+                                  ),
+                                ),
+                              )
+                            : SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: SingleChildScrollView(
+                                  child: SizedBox(
+                                    width: _editingWidth.toDouble(),
+                                    child: _buildInteractiveMockCard(),
+                                  ),
+                                ),
+                              ),
                       ),
                     ],
                   ),
@@ -907,6 +954,94 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                       ],
                     ),
                   ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        const Text('气泡边角:'),
+                        const SizedBox(width: 12),
+                        SegmentedButton<bool>(
+                          segments: const [
+                            ButtonSegment(value: false, label: Text('直角 (0px)')),
+                            ButtonSegment(value: true, label: Text('圆角')),
+                          ],
+                          selected: {_current.cardBorderRadius > 0},
+                          onSelectionChanged: (val) {
+                            setState(() {
+                              if (!val.first) {
+                                _current.cardBorderRadius = 0;
+                              } else {
+                                _current.cardBorderRadius = 10;
+                              }
+                            });
+                          },
+                        ),
+                        if (_current.cardBorderRadius > 0) ...[
+                          const SizedBox(width: 8),
+                          Text('${_current.cardBorderRadius}px', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.remove_circle_outline, size: 18),
+                            onPressed: _current.cardBorderRadius > 2
+                                ? () => setState(() => _current.cardBorderRadius -= 2)
+                                : null,
+                          ),
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            icon: const Icon(Icons.add_circle_outline, size: 18),
+                            onPressed: _current.cardBorderRadius < 30
+                                ? () => setState(() => _current.cardBorderRadius += 2)
+                                : null,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+
+                if (_current.layoutMode == 'split') ...[
+                  const Divider(height: 24),
+                  const Text('经典左右分栏设置：', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        const Text('基准左侧栏宽:'),
+                        const SizedBox(width: 8),
+                        Text('${_current.splitAuthorWidth}px', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(Icons.remove_circle_outline, size: 18),
+                          onPressed: _current.splitAuthorWidth > 80
+                              ? () => setState(() => _current.splitAuthorWidth -= 10)
+                              : null,
+                        ),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          icon: const Icon(Icons.add_circle_outline, size: 18),
+                          onPressed: _current.splitAuthorWidth < 260
+                              ? () => setState(() => _current.splitAuthorWidth += 10)
+                              : null,
+                        ),
+                        const Spacer(),
+                        Wrap(
+                          spacing: 4,
+                          children: [110, 130, 140, 160].map((w) {
+                            final isSel = _current.splitAuthorWidth == w;
+                            return ChoiceChip(
+                              visualDensity: VisualDensity.compact,
+                              label: Text('${w}px', style: const TextStyle(fontSize: 10)),
+                              selected: isSel,
+                              onSelected: (val) {
+                                if (val) setState(() => _current.splitAuthorWidth = w);
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
 
                 const SizedBox(height: 16),
@@ -999,6 +1134,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   Widget _buildWidthBar() {
     final curAvatar = _current.getAvatarSizeForWidth(_editingWidth);
     final curRadius = _current.getBorderRadiusForWidth(_editingWidth);
+    final curAuthorWidth = _current.getAuthorWidthForWidth(_editingWidth);
 
     final showAvatar = _current.getShowAvatarForWidth(_editingWidth);
     final showUsername = _current.getShowUsernameForWidth(_editingWidth);
@@ -1106,44 +1242,19 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
             ),
           ),
           const SizedBox(height: 6),
-          Row(
-            children: [
-              Text('针对 ${_editingWidth}px 头像: ${curAvatar}px', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                icon: const Icon(Icons.remove_circle_outline, size: 16),
-                onPressed: curAvatar > 20
-                    ? () {
-                        setState(() {
-                          _current.setWidthConfig(_editingWidth, 'avatarSize', curAvatar - 2);
-                        });
-                      }
-                    : null,
-              ),
-              IconButton(
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                icon: const Icon(Icons.add_circle_outline, size: 16),
-                onPressed: curAvatar < 64
-                    ? () {
-                        setState(() {
-                          _current.setWidthConfig(_editingWidth, 'avatarSize', curAvatar + 2);
-                        });
-                      }
-                    : null,
-              ),
-              const Spacer(),
-              if (_current.layoutMode == 'card') ...[
-                Text('圆角: ${curRadius}px', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                Text('针对 ${_editingWidth}px 头像: ${curAvatar}px', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
                   icon: const Icon(Icons.remove_circle_outline, size: 16),
-                  onPressed: curRadius > 0
+                  onPressed: curAvatar > 20
                       ? () {
                           setState(() {
-                            _current.setWidthConfig(_editingWidth, 'borderRadius', curRadius - 2);
+                            _current.setWidthConfig(_editingWidth, 'avatarSize', curAvatar - 2);
                           });
                         }
                       : null,
@@ -1152,16 +1263,84 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
                   icon: const Icon(Icons.add_circle_outline, size: 16),
-                  onPressed: curRadius < 30
+                  onPressed: curAvatar < 64
                       ? () {
                           setState(() {
-                            _current.setWidthConfig(_editingWidth, 'borderRadius', curRadius + 2);
+                            _current.setWidthConfig(_editingWidth, 'avatarSize', curAvatar + 2);
                           });
                         }
                       : null,
                 ),
+                const SizedBox(width: 8),
+                if (_current.layoutMode == 'card') ...[
+                  ChoiceChip(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    label: const Text('直角', style: TextStyle(fontSize: 10)),
+                    selected: curRadius == 0,
+                    onSelected: (val) {
+                      if (val) {
+                        setState(() {
+                          _current.setWidthConfig(_editingWidth, 'borderRadius', 0);
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(width: 4),
+                  ChoiceChip(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    label: Text(curRadius > 0 ? '圆角 ${curRadius}px' : '圆角', style: const TextStyle(fontSize: 10)),
+                    selected: curRadius > 0,
+                    onSelected: (val) {
+                      if (val) {
+                        final target = _current.cardBorderRadius > 0 ? _current.cardBorderRadius : 10;
+                        setState(() {
+                          _current.setWidthConfig(_editingWidth, 'borderRadius', target);
+                        });
+                      }
+                    },
+                  ),
+                  if (curRadius > 0) ...[
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.remove_circle_outline, size: 16),
+                      onPressed: curRadius > 2
+                          ? () => setState(() => _current.setWidthConfig(_editingWidth, 'borderRadius', curRadius - 2))
+                          : null,
+                    ),
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      icon: const Icon(Icons.add_circle_outline, size: 16),
+                      onPressed: curRadius < 30
+                          ? () => setState(() => _current.setWidthConfig(_editingWidth, 'borderRadius', curRadius + 2))
+                          : null,
+                    ),
+                  ],
+                ],
+                if (_current.layoutMode == 'split') ...[
+                  Text('左栏宽: ${curAuthorWidth}px', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.remove_circle_outline, size: 16),
+                    onPressed: curAuthorWidth > 80
+                        ? () => setState(() => _current.setWidthConfig(_editingWidth, 'authorWidth', curAuthorWidth - 10))
+                        : null,
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.add_circle_outline, size: 16),
+                    onPressed: curAuthorWidth < 260
+                        ? () => setState(() => _current.setWidthConfig(_editingWidth, 'authorWidth', curAuthorWidth + 10))
+                        : null,
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
           const SizedBox(height: 4),
           // 针对当前宽度定制元素显示（增加或减少某些元素显示）
@@ -1546,7 +1725,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   }
 
   Widget _buildSplitMock() {
-    final curAvatar = _current.getAvatarSizeForWidth(_editingWidth).toDouble().clamp(30.0, 56.0);
+    final curAvatar = _current.getAvatarSizeForWidth(_editingWidth).toDouble().clamp(24.0, 56.0);
+    final curAuthorWidth = _current.getAuthorWidthForWidth(_editingWidth).toDouble();
     final bool showAvatar = _current.getShowAvatarForWidth(_editingWidth);
     final bool showUsername = _current.getShowUsernameForWidth(_editingWidth);
     final bool showOtherInfo = _current.getShowOtherInfoForWidth(_editingWidth);
@@ -1554,6 +1734,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     final bool showPostTime = _current.getShowPostTimeForWidth(_editingWidth);
 
     return Container(
+      width: double.infinity,
       decoration: BoxDecoration(
         color: Colors.white,
         border: Border.all(color: Colors.grey.shade300),
@@ -1572,8 +1753,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           children: [
             // 左侧：经典论坛作者侧边栏
             Container(
-              width: 130,
-              padding: const EdgeInsets.all(10),
+              width: curAuthorWidth,
+              padding: EdgeInsets.all(curAuthorWidth <= 120 ? 6 : 10),
               decoration: BoxDecoration(
                 color: Colors.blueGrey.shade50.withOpacity(0.5),
                 border: Border(
