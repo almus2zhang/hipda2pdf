@@ -144,7 +144,10 @@ class TemplateRenderer {
             if (authorTd) {
               var avImg = authorTd.querySelector('.avatar img') || authorTd.querySelector('img[src*="avatar"]') || authorTd.querySelector('img');
               if (avImg) {
-                avatarSrc = avImg.getAttribute('file') || avImg.src;
+                var src = avImg.getAttribute('file') || avImg.src || '';
+                if (src && src.indexOf('noavatar') === -1 && src.indexOf('none.gif') === -1) {
+                  avatarSrc = src;
+                }
               }
             }
 
@@ -266,6 +269,17 @@ class TemplateRenderer {
                 img.style.cssText = 'width: ' + effectiveAvatarSize + 'px !important; height: ' + effectiveAvatarSize + 'px !important; min-width: ' + effectiveAvatarSize + 'px !important; ' +
                   'border-radius: ${avatarRound ? "50%" : "4px"} !important; object-fit: cover !important; display: block !important; ' +
                   'border: 1px solid $avatarBorder !important;';
+                img.onerror = function() {
+                  var p = this.parentElement;
+                  if (!p) return;
+                  var ph = document.createElement('div');
+                  ph.className = 'd2pdf-avatar-placeholder';
+                  ph.style.cssText = 'width: ' + effectiveAvatarSize + 'px !important; height: ' + effectiveAvatarSize + 'px !important; min-width: ' + effectiveAvatarSize + 'px !important; ' +
+                    'border-radius: ${avatarRound ? "50%" : "4px"} !important; background: #e0e7ff !important; color: #3730a3 !important; ' +
+                    'display: flex !important; align-items: center !important; justify-content: center !important; font-weight: bold !important; font-size: ${uSize}px !important; border: 1px solid $avatarBorder !important;';
+                  ph.innerText = username ? username.substring(0, 1).toUpperCase() : '?';
+                  p.replaceChild(ph, this);
+                };
                 left.appendChild(img);
               } else {
                 var placeholder = document.createElement('div');
@@ -345,8 +359,13 @@ class TemplateRenderer {
             if (authorTd) {
               var userLink = authorTd.querySelector('.postinfo a') || authorTd.querySelector('cite a') || authorTd.querySelector('a[href*="space.php"]');
               if (userLink) username = userLink.innerText.trim();
-              var imgEl = authorTd.querySelector('.avatar img');
-              if (imgEl) avatarSrc = imgEl.getAttribute('file') || imgEl.src;
+              var imgEl = authorTd.querySelector('.avatar img, img[src*="avatar"]');
+              if (imgEl) {
+                var src = imgEl.getAttribute('file') || imgEl.src || '';
+                if (src && src.indexOf('noavatar') === -1 && src.indexOf('none.gif') === -1) {
+                  avatarSrc = src;
+                }
+              }
             }
             if (!username && contentTd) {
               var cl = contentTd.querySelector('a[href*="space.php"]');
@@ -433,6 +452,17 @@ class TemplateRenderer {
                 img.style.cssText = 'width: ' + effectiveAvatarSize + 'px !important; height: ' + effectiveAvatarSize + 'px !important; min-width: ' + effectiveAvatarSize + 'px !important; ' +
                   'border-radius: ${avatarRound ? "50%" : "4px"} !important; object-fit: cover !important; display: block !important; ' +
                   'border: 1px solid $avatarBorder !important; flex-shrink: 0 !important;';
+                img.onerror = function() {
+                  var p = this.parentElement;
+                  if (!p) return;
+                  var ph = document.createElement('div');
+                  ph.className = 'd2pdf-avatar-placeholder';
+                  ph.style.cssText = 'width: ' + effectiveAvatarSize + 'px !important; height: ' + effectiveAvatarSize + 'px !important; min-width: ' + effectiveAvatarSize + 'px !important; ' +
+                    'border-radius: ${avatarRound ? "50%" : "4px"} !important; background: #e0e7ff !important; color: #3730a3 !important; ' +
+                    'display: flex !important; align-items: center !important; justify-content: center !important; font-weight: bold !important; font-size: ${uSize}px !important; flex-shrink: 0 !important; border: 1px solid $avatarBorder !important;';
+                  ph.innerText = username ? username.substring(0, 1).toUpperCase() : '?';
+                  p.replaceChild(ph, this);
+                };
                 left.appendChild(img);
               } else {
                 var placeholder = document.createElement('div');
@@ -508,6 +538,56 @@ class TemplateRenderer {
               authorTd.style.minWidth = '${authorWidth}px';
               authorTd.style.maxWidth = '${authorWidth}px';
               authorTd.style.verticalAlign = '';
+
+              // 无头像时，直接用首字母
+              if ($showAvatar) {
+                var citeEl = authorTd.querySelector('cite a, cite, .postinfo a[href*="uid"]');
+                var uName = citeEl ? citeEl.innerText.trim() : '';
+                var avatarDiv = authorTd.querySelector('.avatar');
+                var avImg = authorTd.querySelector('.avatar img, img[src*="avatar"]');
+                var hasValidImg = avImg && avImg.src && avImg.src.indexOf('noavatar') === -1 && avImg.src.indexOf('none.gif') === -1;
+
+                var effectiveAvSize = $effectiveAvatarSize;
+                if (effectiveAvSize <= 0) {
+                  effectiveAvSize = $authorWidth <= 110 ? 32 : ($authorWidth <= 130 ? 40 : 48);
+                }
+
+                if (!hasValidImg) {
+                  if (!avatarDiv) {
+                    avatarDiv = document.createElement('div');
+                    avatarDiv.className = 'avatar';
+                    var pInfo = authorTd.querySelector('.postinfo') || authorTd.querySelector('cite');
+                    if (pInfo && pInfo.nextSibling) {
+                      authorTd.insertBefore(avatarDiv, pInfo.nextSibling);
+                    } else {
+                      authorTd.insertBefore(avatarDiv, authorTd.firstChild);
+                    }
+                  }
+                  avatarDiv.innerHTML = '';
+                  var ph = document.createElement('div');
+                  ph.className = 'd2pdf-avatar-placeholder';
+                  ph.style.cssText = 'width: ' + effectiveAvSize + 'px !important; height: ' + effectiveAvSize + 'px !important; ' +
+                    'border-radius: ${avatarRound ? "50%" : "4px"} !important; background: #e0e7ff !important; color: #3730a3 !important; ' +
+                    'display: flex !important; align-items: center !important; justify-content: center !important; font-weight: bold !important; ' +
+                    'font-size: ' + Math.max(13, Math.round(effectiveAvSize * 0.45)) + 'px !important; border: 1px solid $avatarBorder !important; margin: 4px 0 8px 0 !important;';
+                  ph.innerText = uName ? uName.substring(0, 1).toUpperCase() : '?';
+                  avatarDiv.appendChild(ph);
+                } else if (avImg) {
+                  avImg.onerror = function() {
+                    var p = this.parentElement;
+                    if (!p) return;
+                    p.innerHTML = '';
+                    var ph = document.createElement('div');
+                    ph.className = 'd2pdf-avatar-placeholder';
+                    ph.style.cssText = 'width: ' + effectiveAvSize + 'px !important; height: ' + effectiveAvSize + 'px !important; ' +
+                      'border-radius: ${avatarRound ? "50%" : "4px"} !important; background: #e0e7ff !important; color: #3730a3 !important; ' +
+                      'display: flex !important; align-items: center !important; justify-content: center !important; font-weight: bold !important; ' +
+                      'font-size: ' + Math.max(13, Math.round(effectiveAvSize * 0.45)) + 'px !important; border: 1px solid $avatarBorder !important; margin: 4px 0 8px 0 !important;';
+                    ph.innerText = uName ? uName.substring(0, 1).toUpperCase() : '?';
+                    p.appendChild(ph);
+                  };
+                }
+              }
             }
 
             var contentTd = table.querySelector('.postcontent');
@@ -926,6 +1006,14 @@ class TemplateRenderer {
             box-sizing: border-box !important;
             object-fit: cover !important;
             margin: 0 !important;
+          }
+          .d2pdf-avatar-placeholder, .postauthor .avatar .d2pdf-avatar-placeholder {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: center !important;
+            user-select: none !important;
+            box-sizing: border-box !important;
           }
 
           /* 用户组头衔（如：传说中的贴神？、金牌会员等）与等级星级图标：过长则截断省略 */

@@ -574,8 +574,10 @@ class _MainScreenState extends State<MainScreen> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  tpl.shortName,
+                                  tpl.name,
                                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF192D50)),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                               Container(
@@ -2348,6 +2350,7 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
   late int _previewFontSize;
   late int _previewWidth;
   late LayoutTemplate _previewTemplate;
+  List<LayoutTemplate> _allTemplates = [];
 
   @override
   void initState() {
@@ -2355,6 +2358,16 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
     _previewFontSize = widget.initialFontSize;
     _previewWidth = widget.renderWidth;
     _previewTemplate = widget.initialTemplate;
+    _loadAllTemplates();
+  }
+
+  Future<void> _loadAllTemplates() async {
+    final list = await TemplateManager.getAllTemplates();
+    if (mounted) {
+      setState(() {
+        _allTemplates = list;
+      });
+    }
   }
 
   Future<void> _injectStyles(InAppWebViewController controller) async {
@@ -2516,88 +2529,76 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
                         ),
                       ),
                     );
+                    await _loadAllTemplates();
                     final active = await TemplateManager.getActiveTemplate();
                     setState(() => _previewTemplate = active);
                     widget.onTemplateChanged?.call(active);
                     _webViewController?.reload();
                   } else {
                     final all = await TemplateManager.getAllTemplates();
+                    setState(() => _allTemplates = all);
                     final found = all.firstWhere((t) => t.id == val, orElse: () => _previewTemplate);
                     setState(() => _previewTemplate = found);
                     widget.onTemplateChanged?.call(found);
                     _webViewController?.reload();
                   }
                 },
-                itemBuilder: (context) => [
-                  PopupMenuItem<String>(
-                    value: TemplateManager.defaultCard.id,
-                    child: Row(
-                      children: [
-                        Icon(
-                          _previewTemplate.id == TemplateManager.defaultCard.id ? Icons.check_circle : Icons.radio_button_unchecked,
-                          size: 16,
-                          color: const Color(0xFF192D50),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text('气泡', style: TextStyle(fontSize: 13)),
-                      ],
+                itemBuilder: (context) {
+                  final list = _allTemplates.isNotEmpty
+                      ? _allTemplates
+                      : TemplateManager.getBuiltinTemplates();
+                  return [
+                    ...list.map((tpl) => PopupMenuItem<String>(
+                          value: tpl.id,
+                          child: Row(
+                            children: [
+                              Icon(
+                                _previewTemplate.id == tpl.id ? Icons.check_circle : Icons.radio_button_unchecked,
+                                size: 16,
+                                color: const Color(0xFF192D50),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  tpl.name,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: _previewTemplate.id == tpl.id ? FontWeight.bold : FontWeight.normal,
+                                    color: const Color(0xFF192D50),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (!tpl.isBuiltin) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF192D50).withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text('自定义', style: TextStyle(fontSize: 10, color: Color(0xFF192D50))),
+                                ),
+                              ],
+                            ],
+                          ),
+                        )),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem<String>(
+                      value: '__manage__',
+                      child: Row(
+                        children: [
+                          Icon(Icons.auto_awesome, size: 16, color: Color(0xFF192D50)),
+                          SizedBox(width: 8),
+                          Text('模板库与 AI 创编...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        ],
+                      ),
                     ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: TemplateManager.fullForum.id,
-                    child: Row(
-                      children: [
-                        Icon(
-                          _previewTemplate.id == TemplateManager.fullForum.id ? Icons.check_circle : Icons.radio_button_unchecked,
-                          size: 16,
-                          color: const Color(0xFF192D50),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text('经典', style: TextStyle(fontSize: 13)),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: TemplateManager.minimalReader.id,
-                    child: Row(
-                      children: [
-                        Icon(
-                          _previewTemplate.id == TemplateManager.minimalReader.id ? Icons.check_circle : Icons.radio_button_unchecked,
-                          size: 16,
-                          color: const Color(0xFF192D50),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text('极简', style: TextStyle(fontSize: 13)),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem<String>(
-                    value: TemplateManager.rawOriginal.id,
-                    child: Row(
-                      children: [
-                        Icon(
-                          _previewTemplate.id == TemplateManager.rawOriginal.id ? Icons.check_circle : Icons.radio_button_unchecked,
-                          size: 16,
-                          color: const Color(0xFF192D50),
-                        ),
-                        const SizedBox(width: 8),
-                        const Text('还原', style: TextStyle(fontSize: 13)),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem<String>(
-                    value: '__manage__',
-                    child: Row(
-                      children: [
-                        Icon(Icons.auto_awesome, size: 16, color: Color(0xFF192D50)),
-                        SizedBox(width: 8),
-                        Text('模板库与 AI 创编...', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                      ],
-                    ),
-                  ),
-                ],
+                  ];
+                },
                 child: Container(
+                  constraints: const BoxConstraints(maxWidth: 160),
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Colors.blueGrey.shade50,
@@ -2609,12 +2610,16 @@ class _ThreadPreviewScreenState extends State<ThreadPreviewScreen> {
                     children: [
                       const Icon(Icons.style, size: 14, color: Color(0xFF192D50)),
                       const SizedBox(width: 4),
-                      Text(
-                        _previewTemplate.shortName,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF192D50),
+                      Flexible(
+                        child: Text(
+                          _previewTemplate.name,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF192D50),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const Icon(Icons.arrow_drop_down, size: 16, color: Color(0xFF192D50)),

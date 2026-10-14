@@ -293,6 +293,20 @@ class TemplateAiGenerator {
     parsed['id'] = 'custom_${DateTime.now().millisecondsSinceEpoch}';
     parsed['isBuiltin'] = false;
 
+    // 校验与规范化 layoutMode，确保必须属于系统支持的四种合法架构之一 (card, split, minimal, raw)
+    final rawMode = parsed['layoutMode']?.toString().toLowerCase().trim() ?? 'card';
+    if (rawMode != 'card' && rawMode != 'split' && rawMode != 'minimal' && rawMode != 'raw') {
+      if (rawMode.contains('split') || rawMode.contains('column') || rawMode.contains('左右') || rawMode.contains('分栏')) {
+        parsed['layoutMode'] = 'split';
+      } else if (rawMode.contains('minimal') || rawMode.contains('clean') || rawMode.contains('极简') || rawMode.contains('纯享')) {
+        parsed['layoutMode'] = 'minimal';
+      } else if (rawMode.contains('raw') || rawMode.contains('original') || rawMode.contains('还原') || rawMode.contains('原汁原味')) {
+        parsed['layoutMode'] = 'raw';
+      } else {
+        parsed['layoutMode'] = 'card';
+      }
+    }
+
     return LayoutTemplate.fromJson(parsed);
   }
 
