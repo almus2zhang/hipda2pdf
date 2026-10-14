@@ -950,6 +950,48 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
     }).toList();
   }
 
+  Widget _buildFloorSpacingControl({String label = '楼层间距离 (间隔):'}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Text(label),
+          const SizedBox(width: 8),
+          Text('${_current.cardSpacing}px', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.remove_circle_outline, size: 18),
+            onPressed: _current.cardSpacing > 0
+                ? () => setState(() => _current.cardSpacing -= (_current.cardSpacing <= 4 ? 1 : 2))
+                : null,
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.add_circle_outline, size: 18),
+            onPressed: _current.cardSpacing < 30
+                ? () => setState(() => _current.cardSpacing += (_current.cardSpacing < 4 ? 1 : 2))
+                : null,
+          ),
+          const Spacer(),
+          Wrap(
+            spacing: 4,
+            children: [0, 1, 2, 4, 6, 8, 10, 14].map((s) {
+              final isSel = _current.cardSpacing == s;
+              return ChoiceChip(
+                visualDensity: VisualDensity.compact,
+                label: Text('${s}px', style: const TextStyle(fontSize: 10)),
+                selected: isSel,
+                onSelected: (val) {
+                  if (val) setState(() => _current.cardSpacing = s);
+                },
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1281,45 +1323,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                       ],
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
-                    child: Row(
-                      children: [
-                        const Text('气泡间距:'),
-                        const SizedBox(width: 8),
-                        Text('${_current.cardSpacing}px', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          icon: const Icon(Icons.remove_circle_outline, size: 18),
-                          onPressed: _current.cardSpacing > 2
-                              ? () => setState(() => _current.cardSpacing -= 2)
-                              : null,
-                        ),
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          icon: const Icon(Icons.add_circle_outline, size: 18),
-                          onPressed: _current.cardSpacing < 30
-                              ? () => setState(() => _current.cardSpacing += 2)
-                              : null,
-                        ),
-                        const Spacer(),
-                        Wrap(
-                          spacing: 4,
-                          children: [6, 8, 10, 14, 18].map((s) {
-                            final isSel = _current.cardSpacing == s;
-                            return ChoiceChip(
-                              visualDensity: VisualDensity.compact,
-                              label: Text('${s}px', style: const TextStyle(fontSize: 10)),
-                              selected: isSel,
-                              onSelected: (val) {
-                                if (val) setState(() => _current.cardSpacing = s);
-                              },
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                    ),
-                  ),
+                  _buildFloorSpacingControl(label: '气泡卡片间距:'),
                 ],
 
                 if (_current.layoutMode == 'split') ...[
@@ -1365,6 +1369,21 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                       ],
                     ),
                   ),
+                  _buildFloorSpacingControl(label: '楼层底部分隔距离:'),
+                ],
+
+                if (_current.layoutMode == 'minimal') ...[
+                  const Divider(height: 24),
+                  const Text('极简纯享设置：', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  const SizedBox(height: 4),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('作者与正文间细分割线'),
+                    subtitle: const Text('关闭可去除用户信息栏和正文之间的细分割线'),
+                    value: _current.showFloorDivider,
+                    onChanged: (val) => setState(() => _current.showFloorDivider = val),
+                  ),
+                  _buildFloorSpacingControl(label: '楼层底部分隔距离:'),
                 ],
 
                 if (_current.layoutMode == 'raw') ...[
@@ -1392,6 +1411,8 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 6),
+                  _buildFloorSpacingControl(label: '楼层底部分隔距离:'),
                 ],
 
                 const SizedBox(height: 16),
@@ -1670,26 +1691,9 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                           : null,
                     ),
                   ],
-                  const SizedBox(width: 8),
-                  Text('间距: ${curSpacing}px', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.remove_circle_outline, size: 16),
-                    onPressed: curSpacing > 2
-                        ? () => setState(() => _current.setWidthConfig(_editingWidth, 'cardSpacing', curSpacing - 2))
-                        : null,
-                  ),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.add_circle_outline, size: 16),
-                    onPressed: curSpacing < 30
-                        ? () => setState(() => _current.setWidthConfig(_editingWidth, 'cardSpacing', curSpacing + 2))
-                        : null,
-                  ),
                 ],
-                if (_current.layoutMode == 'split') ...[
+                if (_current.layoutMode == 'split' || _current.layoutMode == 'raw') ...[
+                  const SizedBox(width: 6),
                   Text('左栏宽: ${curAuthorWidth}px', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                   IconButton(
                     visualDensity: VisualDensity.compact,
@@ -1708,6 +1712,24 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
                         : null,
                   ),
                 ],
+                const SizedBox(width: 8),
+                Text('楼层距: ${curSpacing}px', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.remove_circle_outline, size: 16),
+                  onPressed: curSpacing > 0
+                      ? () => setState(() => _current.setWidthConfig(_editingWidth, 'cardSpacing', (curSpacing <= 2 ? curSpacing - 1 : curSpacing - 2).clamp(0, 50)))
+                      : null,
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  icon: const Icon(Icons.add_circle_outline, size: 16),
+                  onPressed: curSpacing < 50
+                      ? () => setState(() => _current.setWidthConfig(_editingWidth, 'cardSpacing', (curSpacing < 2 ? curSpacing + 1 : curSpacing + 2).clamp(0, 50)))
+                      : null,
+                ),
               ],
             ),
           ),
@@ -2053,6 +2075,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
   Widget _buildMinimalMock() {
     final curAvatar = _current.getAvatarSizeForWidth(_editingWidth).toDouble().clamp(16.0, 48.0);
+    final curSpacing = _current.getCardSpacingForWidth(_editingWidth).toDouble();
     final bool showAvatar = _current.getShowAvatarForWidth(_editingWidth);
     final bool showUsername = _current.getShowUsernameForWidth(_editingWidth);
     final bool showPostTime = _current.getShowPostTimeForWidth(_editingWidth);
@@ -2068,7 +2091,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           top: BorderSide(color: Colors.grey.shade300),
           left: BorderSide(color: Colors.grey.shade300),
           right: BorderSide(color: Colors.grey.shade300),
-          bottom: const BorderSide(color: Color(0xFFE9E9E9), width: 4),
+          bottom: curSpacing > 0 ? BorderSide(color: const Color(0xFFE9E9E9), width: curSpacing) : BorderSide.none,
         ),
         borderRadius: BorderRadius.circular(4),
       ),
@@ -2179,6 +2202,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
   Widget _buildSplitMock() {
     final curAvatar = _current.getAvatarSizeForWidth(_editingWidth).toDouble().clamp(24.0, 56.0);
     final curAuthorWidth = _current.getAuthorWidthForWidth(_editingWidth).toDouble();
+    final curSpacing = _current.getCardSpacingForWidth(_editingWidth).toDouble();
     final bool showAvatar = _current.getShowAvatarForWidth(_editingWidth);
     final bool showUsername = _current.getShowUsernameForWidth(_editingWidth);
     final bool showOtherInfo = _current.getShowOtherInfoForWidth(_editingWidth);
@@ -2194,7 +2218,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
           top: BorderSide(color: Colors.grey.shade300),
           left: BorderSide(color: Colors.grey.shade300),
           right: BorderSide(color: Colors.grey.shade300),
-          bottom: const BorderSide(color: Color(0xFFE9E9E9), width: 4),
+          bottom: curSpacing > 0 ? BorderSide(color: const Color(0xFFE9E9E9), width: curSpacing) : BorderSide.none,
         ),
         borderRadius: BorderRadius.circular(4),
         boxShadow: [
@@ -2382,6 +2406,7 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
   Widget _buildRawMock() {
     final curAuthorWidth = _current.getAuthorWidthForWidth(_editingWidth).toDouble();
+    final curSpacing = _current.getCardSpacingForWidth(_editingWidth).toDouble();
     final bool showAvatar = _current.getShowAvatarForWidth(_editingWidth);
     final bool showUsername = _current.getShowUsernameForWidth(_editingWidth);
     final bool showOtherInfo = _current.getShowOtherInfoForWidth(_editingWidth);
@@ -2391,13 +2416,13 @@ class _TemplateEditorScreenState extends State<TemplateEditorScreen> {
 
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
-          top: BorderSide(color: Color(0xFFD9D9D9)),
-          left: BorderSide(color: Color(0xFFD9D9D9)),
-          right: BorderSide(color: Color(0xFFD9D9D9)),
-          bottom: BorderSide(color: Color(0xFFE9E9E9), width: 4),
+          top: const BorderSide(color: Color(0xFFD9D9D9)),
+          left: const BorderSide(color: Color(0xFFD9D9D9)),
+          right: const BorderSide(color: Color(0xFFD9D9D9)),
+          bottom: curSpacing > 0 ? BorderSide(color: const Color(0xFFE9E9E9), width: curSpacing) : BorderSide.none,
         ),
         borderRadius: BorderRadius.zero,
       ),

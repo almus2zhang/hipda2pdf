@@ -521,8 +521,8 @@ class TemplateRenderer {
             table.style.display = 'block';
             table.style.margin = '0';
             table.style.border = 'none';
-            // 楼层底部分割线与间隔与经典左右完全一致：高度 4px，颜色 #e9e9e9
-            table.style.borderBottom = '4px solid #e9e9e9';
+            // 楼层底部分割线与间隔：高度 ${cardSpacing}px，颜色 #e9e9e9
+            table.style.borderBottom = '${cardSpacing > 0 ? "${cardSpacing}px solid #e9e9e9" : "none"}';
             table.style.background = '#ffffff';
             table.style.boxSizing = 'border-box';
 
@@ -618,8 +618,8 @@ class TemplateRenderer {
             table.style.display = '';
             table.style.margin = '0';
             table.style.border = 'none';
-            // 楼层底部分割线与原汁原味完全一致：高度 4px，颜色 #e9e9e9
-            table.style.borderBottom = '4px solid #e9e9e9';
+            // 楼层底部分割线与间隔：高度 ${cardSpacing}px，颜色 #e9e9e9
+            table.style.borderBottom = '${cardSpacing > 0 ? "${cardSpacing}px solid #e9e9e9" : "none"}';
             table.style.background = '';
 
             // 彻底移除多余广告栏、操作栏、底栏 tr，避免楼层之间出现半边色块或冗余空隙
@@ -1294,7 +1294,7 @@ class TemplateRenderer {
             margin: 0 !important;
             padding: 0 !important;
             border: none !important;
-            border-bottom: 4px solid #e9e9e9 !important;
+            border-bottom: ${cardSpacing > 0 ? "${cardSpacing}px solid #e9e9e9" : "none"} !important;
             box-sizing: border-box !important;
             background: #ffffff !important;
           }
@@ -1369,7 +1369,7 @@ class TemplateRenderer {
             margin: 0 !important;
             padding: 0 !important;
             border: none !important;
-            border-bottom: 4px solid #e9e9e9 !important;
+            border-bottom: ${cardSpacing > 0 ? "${cardSpacing}px solid #e9e9e9" : "none"} !important;
             border-collapse: collapse !important;
             border-spacing: 0 !important;
             background: #ffffff !important;
